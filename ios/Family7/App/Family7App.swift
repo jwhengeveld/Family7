@@ -74,6 +74,7 @@ struct RootView: View {
 
 struct MainTabs: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         @Bindable var model = model
@@ -82,12 +83,25 @@ struct MainTabs: View {
                 .tabItem { Label("Start", systemImage: "house.fill") }.tag(AppTab.home)
             NavigationStack { LiveView() }.miniCastBar()
                 .tabItem { Label("Live", systemImage: "dot.radiowaves.left.and.right") }.tag(AppTab.live)
+            // Bladeren, zoals "On Demand" op tv.
+            NavigationStack { BrowseView().family7Destinations() }.miniCastBar()
+                .tabItem { Label("Programma's", systemImage: "play.rectangle.on.rectangle.fill") }.tag(AppTab.browse)
+            // Kids heeft op een iPad een eigen plek, zoals op tv; onderin op een
+            // iPhone past er niet meer bij (daar via Programma's en het startscherm).
+            if sizeClass == .regular {
+                NavigationStack { GridView(destination: .kids).family7Destinations() }.miniCastBar()
+                    .tabItem { Label("Kids", systemImage: "figure.and.child.holdinghands") }.tag(AppTab.kids)
+            }
             NavigationStack { SearchView().family7Destinations() }.miniCastBar()
                 .tabItem { Label("Zoeken", systemImage: "magnifyingglass") }.tag(AppTab.search)
             NavigationStack { MyListView().family7Destinations() }.miniCastBar()
                 .tabItem { Label("Mijn lijst", systemImage: "bookmark.fill") }.tag(AppTab.myList)
         }
         .family7TabStyle()
+        // Verdwijnt het Kids-tabblad (iPad in gesplitst scherm), dan naar Programma's.
+        .onChange(of: sizeClass) { _, size in
+            if size != .regular && model.selectedTab == .kids { model.selectedTab = .browse }
+        }
     }
 }
 

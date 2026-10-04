@@ -10,6 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.key
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -39,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import nl.family7.core.data.ProgramItem
 import nl.family7.mobile.cast.CastButton
+import nl.family7.core.data.CategoryRow
+import nl.family7.mobile.ui.GridSource
 import nl.family7.mobile.ui.GridViewModel
 import nl.family7.mobile.ui.LoadState
 import nl.family7.mobile.ui.gridMinCellWidth
@@ -117,6 +125,93 @@ fun SearchScreen(
             onRetry = { viewModel.programs.refresh() },
             onOpenProgram = onOpenProgram
         )
+    }
+}
+
+/** Eén keuze bovenin het bladerscherm. */
+private sealed interface BrowseChoice {
+    val key: String
+    val label: String
+
+    data class Source(override val key: String, override val label: String, val source: GridSource) : BrowseChoice
+    /** Een rubriek zonder eigen "Alles"-pagina: dan de programma's uit de rij zelf. */
+    data class Items(override val key: String, override val label: String, val items: List<ProgramItem>) : BrowseChoice
+}
+
+/**
+ * Bladeren door alle programma's, zoals "On Demand" op tv: A-Z, Kids en de
+ * rubrieken die op de site staan. Die rubrieken komen van de site zelf, dus
+ * een nieuwe rubriek verschijnt hier vanzelf.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BrowseScreen(
+    rows: List<CategoryRow>,
+    castAvailable: Boolean,
+    gridViewModel: @Composable (key: String, source: GridSource) -> GridViewModel,
+    onOpenProgram: (ProgramItem) -> Unit
+) {
+    val choices = remember(rows) {
+        val fixed = listOf(
+            BrowseChoice.Source("az", "A-Z", GridSource.AZ),
+            BrowseChoice.Source("kids", "Kids", GridSource.Kids)
+        )
+        val fromSite = rows
+            .filter { it.id != "uitgelicht" && (it.moreUrl.isNotBlank() || it.items.isNotEmpty()) }
+            .distinctBy { it.moreUrl.ifBlank { it.id } }
+            .map { row ->
+                if (row.moreUrl.isNotBlank()) BrowseChoice.Source("page-${row.moreUrl}", row.title, GridSource.Page(row.moreUrl))
+                else BrowseChoice.Items("row-${row.id}", row.title, row.items)
+            }
+        fixed + fromSite
+    }
+    var selectedKey by rememberSaveable { mutableStateOf("az") }
+    val selected = choices.firstOrNull { it.key == selectedKey } ?: choices.first()
+
+    // De gekozen rubriek in beeld houden, ook na draaien of terugkomen.
+    val chipState = rememberLazyListState()
+    LaunchedEffect(choices.size) {
+        val index = choices.indexOfFirst { it.key == selected.key }
+        if (index > 0) chipState.scrollToItem((index - 1).coerceAtLeast(0))
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        ScreenBar("Programma's", castAvailable, onBack = null)
+        LazyRow(
+            state = chipState,
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(bottom = 4.dp)
+        ) {
+            items(choices, key = { it.key }) { choice ->
+                FilterChip(
+                    selected = choice.key == selected.key,
+                    onClick = { selectedKey = choice.key },
+                    label = { Text(choice.label) }
+                )
+            }
+        }
+        // Elke keuze een eigen raster, zodat wisselen bovenaan begint.
+        key(selected.key) {
+            when (selected) {
+                is BrowseChoice.Source -> {
+                    val viewModel = gridViewModel(selected.key, selected.source)
+                    val state by viewModel.programs.state.collectAsStateWithLifecycle()
+                    ProgramGrid(
+                        state = state,
+                        emptyMessage = "Hier staan nu geen programma's.",
+                        onRetry = { viewModel.programs.refresh() },
+                        onOpenProgram = onOpenProgram
+                    )
+                }
+                is BrowseChoice.Items -> ProgramGrid(
+                    state = LoadState(data = selected.items),
+                    emptyMessage = "Hier staan nu geen programma's.",
+                    onRetry = {},
+                    onOpenProgram = onOpenProgram
+                )
+            }
+        }
     }
 }
 

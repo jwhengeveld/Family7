@@ -30,9 +30,11 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -67,11 +69,13 @@ import nl.family7.core.data.ProgramItem
 import nl.family7.mobile.playback.PlayRequest
 import nl.family7.mobile.ui.AppViewModel
 import nl.family7.mobile.ui.AuthState
+import nl.family7.mobile.ui.BrowseViewModel
 import nl.family7.mobile.ui.GridSource
 import nl.family7.mobile.ui.GridViewModel
 import nl.family7.mobile.ui.HomeViewModel
 import nl.family7.mobile.ui.MyListViewModel
 import nl.family7.mobile.ui.ProgramViewModel
+import nl.family7.mobile.ui.screens.BrowseScreen
 import nl.family7.mobile.ui.screens.GridScreen
 import nl.family7.mobile.ui.screens.HomeScreen
 import nl.family7.mobile.ui.screens.LoginScreen
@@ -167,6 +171,7 @@ class MainActivity : AppCompatActivity() {
 
 private object Routes {
     const val HOME = "home"
+    const val BROWSE = "browse"
     const val SEARCH = "search"
     const val MY_LIST = "mylist"
     const val KIDS = "kids"
@@ -180,11 +185,22 @@ private object Routes {
         "program/${Uri.encode(item.slug)}?title=${Uri.encode(item.title)}&image=${Uri.encode(item.thumbnailUrl)}"
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+/** [railOnly]: alleen in de zijbalk op een tablet; onderin past er niet meer bij. */
+private data class Tab(
+    val route: String,
+    val label: String,
+    val icon: ImageVector,
+    val railOnly: Boolean = false,
+    /** Korter woord voor de smalle onderbalk van een telefoon. */
+    val shortLabel: String = label
+)
 
 private val tabs = listOf(
     Tab(Routes.HOME, "Start", Icons.Filled.Home),
     Tab("live", "Live", Icons.Filled.LiveTv),
+    // Bladeren, zoals "On Demand" op tv.
+    Tab(Routes.BROWSE, "Programma's", Icons.Filled.VideoLibrary, shortLabel = "Bladeren"),
+    Tab(Routes.KIDS, "Kids", Icons.Filled.ChildCare, railOnly = true),
     Tab(Routes.SEARCH, "Zoeken", Icons.Filled.Search),
     Tab(Routes.MY_LIST, "Mijn lijst", Icons.AutoMirrored.Filled.List)
 )
@@ -262,7 +278,7 @@ private fun MainNavigation(
                         }
                         // Op een tablet staat de navigatie links, zoals op de TV.
                         if (!wide) NavigationBar {
-                            tabs.forEach { tab ->
+                            tabs.filterNot { it.railOnly }.forEach { tab ->
                                 val selected = backStack?.destination?.hierarchy()?.contains(tab.route) == true
                                 NavigationBarItem(
                                     selected = selected,
@@ -271,7 +287,7 @@ private fun MainNavigation(
                                         else nav.navigateToTab(tab.route)
                                     },
                                     icon = { Icon(tab.icon, contentDescription = null) },
-                                    label = { Text(tab.label) }
+                                    label = { Text(tab.shortLabel, maxLines = 1, softWrap = false) }
                                 )
                             }
                         }
@@ -303,6 +319,16 @@ private fun MainNavigation(
                         onLogout = appViewModel::logout
                     )
                 }
+                composable(Routes.BROWSE) {
+                    val browse = viewModel { BrowseViewModel(app) }
+                    val rows by browse.rows.state.collectAsStateWithLifecycle()
+                    BrowseScreen(
+                        rows = rows.data.orEmpty(),
+                        castAvailable = playback.castAvailable,
+                        gridViewModel = { key, source -> viewModel(key = key) { GridViewModel(app, source) } },
+                        onOpenProgram = { nav.navigate(Routes.program(it)) }
+                    )
+                }
                 composable(Routes.SEARCH) {
                     SearchScreen(
                         viewModel = viewModel(key = "az") { GridViewModel(app, GridSource.AZ) },
@@ -324,7 +350,8 @@ private fun MainNavigation(
                         castAvailable = playback.castAvailable,
                         emptyMessage = "Er zijn op dit moment geen kinderprogramma's gevonden.",
                         onOpenProgram = { nav.navigate(Routes.program(it)) },
-                        onBack = { nav.popBackStack() }
+                        // Op een tablet staat Kids in de zijbalk: dan geen terugpijl.
+                        onBack = if (wide) null else ({ nav.popBackStack() })
                     )
                 }
                 composable(Routes.AZ) {
@@ -416,7 +443,7 @@ private fun Family7Rail(isSelected: (String) -> Boolean, onSelect: (String) -> U
                 selected = isSelected(tab.route),
                 onClick = { onSelect(tab.route) },
                 icon = { Icon(tab.icon, contentDescription = null) },
-                label = { Text(tab.label) }
+                label = { Text(tab.label, maxLines = 1, softWrap = false) }
             )
         }
     }

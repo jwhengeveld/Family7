@@ -139,6 +139,20 @@ class HomeViewModel(private val app: Family7MobileApp) : ViewModel() {
     }
 }
 
+/** De rubrieken van de site, om door te bladeren (zoals "On Demand" op tv). */
+class BrowseViewModel(private val app: Family7MobileApp) : ViewModel() {
+
+    val rows = Loader(
+        scope = viewModelScope,
+        network = app.network,
+        initial = app.catalog.homeCache.snapshot()
+    ) { force -> app.catalog.getOnDemandHome(forceRefresh = force) }
+
+    init {
+        rows.load()
+    }
+}
+
 /** De uitgelichte kop en de gewone rijen, apart. */
 fun List<CategoryRow>.splitFeatured(): Pair<ProgramItem?, List<CategoryRow>> {
     val featured = firstOrNull { it.id == "uitgelicht" }?.items?.firstOrNull()

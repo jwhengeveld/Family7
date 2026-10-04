@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SwiftUI
 
-enum AppTab: Hashable { case home, live, search, myList }
+enum AppTab: Hashable { case home, live, browse, kids, search, myList }
 
 enum AuthState {
     case checking, loggedOut, loggedIn
