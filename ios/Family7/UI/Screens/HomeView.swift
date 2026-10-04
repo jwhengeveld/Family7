@@ -21,6 +21,7 @@ struct HomeView: View {
                 Image("Family7Logo").resizable().scaledToFit().frame(height: 28)
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
+                SearchButton()
                 TVButtons()
                 Menu {
                     Button("Uitloggen", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { model.logout() }
@@ -65,12 +66,12 @@ struct HomeView: View {
                         let featured = rows.first { $0.id == "uitgelicht" }?.items.first ?? rows.first?.items.first
                         if let featured {
                             if sizeClass == .regular {
-                                WideHero(program: featured) { model.play(.live) }
+                                WideHero(program: featured) { model.selectedTab = .live }
                             } else {
                                 HeroCard(program: featured)
                             }
                         }
-                        LiveCard(info: live) { model.play(.live) }
+                        LiveCard(info: live) { model.selectedTab = .live }
                         HStack(spacing: 8) {
                             NavigationLink(value: GridDestination.kids) { Label("Kids", systemImage: "figure.and.child.holdinghands") }
                             NavigationLink(value: GridDestination.all) { Label("Alle programma's", systemImage: "textformat.abc") }

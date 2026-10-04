@@ -342,4 +342,44 @@ object Family7Parser {
     // ------------------------------------------------------------ mijn lijst
 
     fun myList(doc: Document): List<ProgramItem> = programCards(doc.body() ?: doc)
+
+    // ------------------------------------------------------------- tv-gids
+
+    /**
+     * De uitzendingen uit de tv-gids van de site (/tv-guide-get-items, het
+     * "renderedItems"-deel). Items zonder tijd of titel slaan we over; het
+     * standaard-Family7-logo is geen programmabeeld.
+     */
+    fun guideItems(doc: Document): List<GuideItem> =
+        doc.select("li.tv-guide-item").mapNotNull { item ->
+            val time = Regex("""\d{1,2}:\d{2}""").find(item.selectFirst(".tv-guide-item-time")?.text().orEmpty())?.value
+                ?.padStart(5, '0') ?: return@mapNotNull null
+            val title = cleanGuideText(item.selectFirst(".tv-guide-item-title")?.text().orEmpty())
+            if (title.isBlank()) return@mapNotNull null
+            val image = item.selectFirst(".tv-guide-item-image img")?.attr("src").orEmpty()
+            val links = item.select("a[href]").map { it.attr("href") }
+            GuideItem(
+                start = time,
+                title = title,
+                episode = cleanGuideText(item.selectFirst(".tv-guide-item-data")?.text().orEmpty()),
+                description = cleanGuideText(item.selectFirst(".tv-guide-item-description")?.text().orEmpty()),
+                imageUrl = if (image.isBlank() || image.contains("fam7logo")) "" else absolute(image),
+                programSlug = links.firstNotNullOfOrNull { Regex("""/programmas/([^/?#]+)""").find(it)?.groupValues?.get(1) }.orEmpty(),
+                videoSlug = links.firstNotNullOfOrNull { Regex("""/video/([^/?#]+)""").find(it)?.groupValues?.get(1) }.orEmpty()
+            )
+        }
+
+    /**
+     * De gids bevat Windows-tekens die als stuurcode binnenkomen (U+0080 tot
+     * U+009F: aanhalingstekens, beletselteken, gedachtestreep); die worden de
+     * echte tekens. Dubbele spaties gaan eruit.
+     */
+    private fun cleanGuideText(text: String): String =
+        text.map { c -> if (c.code in 0x80..0x9F) windows1252(c) else c }.joinToString("")
+            .replace(Regex("""\s+"""), " ").trim()
+
+    private fun windows1252(c: Char): Char =
+        String(byteArrayOf(c.code.toByte()), charset("windows-1252")).singleOrNull()
+            ?.takeIf { it.code !in 0x80..0x9F } ?: ' '
+
 }

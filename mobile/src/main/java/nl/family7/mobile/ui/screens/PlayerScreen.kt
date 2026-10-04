@@ -83,6 +83,8 @@ import nl.family7.mobile.ui.theme.TextSecondary
 @Composable
 fun PlayerScreen(
     playback: PlaybackManager,
+    /** Groot geopend vanuit de kleine livespeler: sluiten laat hem doorspelen. */
+    keepPlayingOnClose: Boolean = false,
     isInPip: Boolean,
     onPipEligibleChanged: (Boolean) -> Unit,
     onBack: () -> Unit
@@ -106,7 +108,7 @@ fun PlayerScreen(
         onDispose {
             playback.playerScreenVisible = false
             onPipEligibleChanged(false)
-            if (activity?.isChangingConfigurations != true) playback.stopLocal()
+            if (!keepPlayingOnClose && activity?.isChangingConfigurations != true) playback.stopLocal()
         }
     }
 

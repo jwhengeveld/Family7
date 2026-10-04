@@ -24,6 +24,93 @@ class Family7LiveRepository(appContext: Context) {
         private const val LIVE_PAGE_URL = "https://www.family7.nl/plus/live"
         private const val KEY_LAST_PLAYER_URL = "last_player_url"
         private const val KEY_LAST_STREAM_URL = "last_stream_url"
+        /** De gids verandert zelden; vaker ophalen dan dit is zinloos. */
+        private const val GUIDE_TTL_MS = 15 * 60_000L
+        private const val GUIDE_DAYS_KEPT = 12
+
+        private val amsterdam: java.util.TimeZone = java.util.TimeZone.getTimeZone("Europe/Amsterdam")
+
+        /** De datum ("yyyy-MM-dd") in Nederland, [offset] dagen vanaf vandaag. */
+        fun guideDate(offset: Int): String {
+            val day = java.util.Calendar.getInstance(amsterdam).apply { add(java.util.Calendar.DAY_OF_YEAR, offset) }.time
+            return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).apply { timeZone = amsterdam }.format(day)
+        }
+    }
+
+    // ------------------------------------------------------------- tv-gids
+
+    /** De gids per dag ("yyyy-MM-dd") in het geheugen, met het moment van ophalen. */
+    private val guideMemory = HashMap<String, Pair<Long, List<GuideItem>>>()
+    /** De gids van recente dagen op schijf, zodat hij ook zonder netwerk te zien is. */
+    private val guideDisk = context.getSharedPreferences("family7_guide", Context.MODE_PRIVATE)
+
+    /**
+     * De programmagids van één dag, zoals de site hem toont. De site is de
+     * bron: binnen [GUIDE_TTL_MS] uit het geheugen, anders opnieuw van de site;
+     * lukt dat niet, dan de laatst bekende versie van schijf.
+     */
+    suspend fun getGuide(date: String, force: Boolean = false): Result<List<GuideItem>> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (!force) synchronized(guideMemory) { guideMemory[date] }?.let { (at, items) ->
+            if (now - at < GUIDE_TTL_MS) return@withContext Result.success(items)
+        }
+        val previous = synchronized(guideMemory) { guideMemory[date]?.second } ?: readGuide(date)
+        runCatching {
+            val page = pages.page("${Family7Parser.BASE_URL}/tv-guide-get-items/${date}T00:00:00/23:59:59/not_today_search", fresh = true)
+            val html = org.json.JSONObject(page.html).optString("renderedItems")
+            Family7Parser.guideItems(Jsoup.parseBodyFragment(html, Family7Parser.BASE_URL))
+        }.fold(
+            onSuccess = { fresh ->
+                // Eén keer een verdacht lege of halve dag houdt de vorige versie vast.
+                val items = if (previous != null && !Plausibility.accept("guide:$date", previous.size, fresh.size)) previous else fresh
+                synchronized(guideMemory) { guideMemory[date] = now to items }
+                writeGuide(date, items)
+                Result.success(items)
+            },
+            onFailure = { error -> previous?.let { Result.success(it) } ?: Result.failure(error) }
+        )
+    }
+
+    /**
+     * Haalt de gids van gisteren tot overmorgen alvast op de achtergrond op
+     * (bij het starten van de app en bij het openen van live), zodat de gids
+     * meteen klaarstaat. Wat al vers is, wordt niet opnieuw opgehaald.
+     */
+    suspend fun prefetchGuide() {
+        (-1..2).map { guideDate(it) }.forEach { date -> getGuide(date) }
+    }
+
+    /** Wat er van een dag al bekend is, zonder netwerk: om meteen iets te tonen. */
+    fun cachedGuide(date: String): List<GuideItem>? =
+        synchronized(guideMemory) { guideMemory[date]?.second } ?: readGuide(date)
+
+    private fun readGuide(date: String): List<GuideItem>? = runCatching {
+        val raw = guideDisk.getString(date, null) ?: return null
+        val array = org.json.JSONArray(raw)
+        (0 until array.length()).map { i ->
+            val o = array.getJSONObject(i)
+            GuideItem(
+                start = o.optString("start"), title = o.optString("title"), episode = o.optString("episode"),
+                description = o.optString("description"), imageUrl = o.optString("imageUrl"),
+                programSlug = o.optString("programSlug"), videoSlug = o.optString("videoSlug")
+            )
+        }
+    }.getOrNull()
+
+    private fun writeGuide(date: String, items: List<GuideItem>) {
+        val array = org.json.JSONArray()
+        items.forEach { item ->
+            array.put(
+                org.json.JSONObject()
+                    .put("start", item.start).put("title", item.title).put("episode", item.episode)
+                    .put("description", item.description).put("imageUrl", item.imageUrl)
+                    .put("programSlug", item.programSlug).put("videoSlug", item.videoSlug)
+            )
+        }
+        val editor = guideDisk.edit().putString(date, array.toString())
+        // Alleen recente dagen bewaren; datums sorteren als tekst goed.
+        guideDisk.all.keys.sorted().dropLast(GUIDE_DAYS_KEPT).forEach(editor::remove)
+        editor.apply()
     }
 
     suspend fun getLiveInfo(): Result<LiveStreamInfo> = withContext(Dispatchers.IO) {

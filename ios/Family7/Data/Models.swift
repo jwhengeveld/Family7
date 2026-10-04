@@ -77,3 +77,24 @@ struct Family7Error: LocalizedError, Sendable {
     init(_ message: String) { self.message = message }
     var errorDescription: String? { message }
 }
+
+/// Eén uitzending in de programmagids van de site. `start` is "HH:mm" in
+/// Nederlandse tijd; de dag staat bij de lijst waar het item in zit.
+struct GuideItem: Codable, Hashable, Sendable {
+    var start: String
+    var title: String
+    var episode = ""
+    var description = ""
+    var imageURL = ""
+    /// Het programma op de site, als de gids ernaar linkt.
+    var programSlug = ""
+    /// De aflevering die al terug te kijken is, als de gids ernaar linkt.
+    var videoSlug = ""
+
+    /// Minuten na middernacht, om het "nu" te bepalen.
+    var startMinutes: Int {
+        let parts = start.split(separator: ":").compactMap { Int($0) }
+        return (parts.first ?? 0) * 60 + (parts.count > 1 ? parts[1] : 0)
+    }
+}
+

@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -72,12 +73,15 @@ import nl.family7.mobile.ui.AuthState
 import nl.family7.mobile.ui.BrowseViewModel
 import nl.family7.mobile.ui.GridSource
 import nl.family7.mobile.ui.GridViewModel
+import nl.family7.mobile.ui.GuideViewModel
 import nl.family7.mobile.ui.HomeViewModel
+import nl.family7.mobile.ui.SearchViewModel
 import nl.family7.mobile.ui.MyListViewModel
 import nl.family7.mobile.ui.ProgramViewModel
 import nl.family7.mobile.ui.screens.BrowseScreen
 import nl.family7.mobile.ui.screens.GridScreen
 import nl.family7.mobile.ui.screens.HomeScreen
+import nl.family7.mobile.ui.screens.LiveScreen
 import nl.family7.mobile.ui.screens.LoginScreen
 import nl.family7.mobile.ui.screens.MiniCastBar
 import nl.family7.mobile.ui.screens.MyListScreen
@@ -178,7 +182,11 @@ private object Routes {
     const val AZ = "az"
     const val PAGE = "page?url={url}&title={title}"
     const val PROGRAM = "program/{slug}?title={title}&image={image}"
-    const val PLAYER = "player"
+    const val LIVE = "live"
+    /** [keep]: geopend vanuit de kleine livespeler; sluiten laat hem doorspelen. */
+    const val PLAYER = "player?keep={keep}"
+
+    fun player(keep: Boolean = false) = "player?keep=$keep"
 
     fun page(url: String, title: String) = "page?url=${Uri.encode(url)}&title=${Uri.encode(title)}"
     fun program(item: ProgramItem) =
@@ -195,11 +203,10 @@ private data class Tab(
 
 private val tabs = listOf(
     Tab(Routes.HOME, "Start", Icons.Filled.Home),
-    Tab("live", "Live", Icons.Filled.LiveTv),
+    Tab(Routes.LIVE, "Live", Icons.Filled.LiveTv),
     // Bladeren, zoals "On Demand" op tv.
     Tab(Routes.BROWSE, "Programma's", Icons.Filled.VideoLibrary),
     Tab(Routes.KIDS, "Kids", Icons.Filled.ChildCare, railOnly = true),
-    Tab(Routes.SEARCH, "Zoeken", Icons.Filled.Search),
     Tab(Routes.MY_LIST, "Mijn lijst", Icons.AutoMirrored.Filled.List)
 )
 
@@ -244,25 +251,29 @@ private fun MainNavigation(
     val castPlayer by app.playback.player.collectAsStateWithLifecycle()
     val myList by app.myList.items.collectAsStateWithLifecycle()
     val onPlayer = route == Routes.PLAYER
+    val stack by nav.currentBackStack.collectAsStateWithLifecycle()
+    val currentTab = currentTabRoute(stack)
 
     fun play(request: PlayRequest) {
         app.playback.play(request)
         // Tijdens het casten blijft de kijker waar hij is; de mini-balk toont wat er speelt.
-        if (!app.playback.state.value.isCasting) nav.navigate(Routes.PLAYER) { launchSingleTop = true }
+        if (!app.playback.state.value.isCasting) nav.navigate(Routes.player()) { launchSingleTop = true }
     }
 
     val wide = isWideScreen()
     Row(Modifier.fillMaxSize()) {
         if (wide && !onPlayer) {
             Family7Rail(
-                isSelected = { route -> backStack?.destination?.hierarchy()?.contains(route) == true },
-                onSelect = { route -> if (route == "live") play(PlayRequest.Live) else nav.navigateToTab(route) }
+                isSelected = { route -> route == currentTab },
+                onSelect = { route -> nav.navigateToTab(route) },
+                onSearch = { nav.navigate(Routes.SEARCH) { launchSingleTop = true } }
             )
         }
         Scaffold(
             modifier = Modifier.weight(1f),
             bottomBar = {
-                if (!onPlayer) {
+                // Zoeken vult het scherm, met het toetsenbord; dan geen balk onderin.
+                if (!onPlayer && route != Routes.SEARCH) {
                     Column {
                         // Tijdens het casten altijd de mini-balk, ook als er nog niets speelt.
                         if (playback.isCasting) {
@@ -271,19 +282,16 @@ private fun MainNavigation(
                                 player = castPlayer,
                                 onTogglePlay = app.playback::togglePlayPause,
                                 onStop = app.playback::stopCasting,
-                                onOpen = { nav.navigate(Routes.PLAYER) { launchSingleTop = true } }
+                                onOpen = { nav.navigate(Routes.player()) { launchSingleTop = true } }
                             )
                         }
                         // Op een tablet staat de navigatie links, zoals op de TV.
                         if (!wide) NavigationBar {
                             tabs.filterNot { it.railOnly }.forEach { tab ->
-                                val selected = backStack?.destination?.hierarchy()?.contains(tab.route) == true
+                                val selected = tab.route == currentTab
                                 NavigationBarItem(
                                     selected = selected,
-                                    onClick = {
-                                        if (tab.route == "live") play(PlayRequest.Live)
-                                        else nav.navigateToTab(tab.route)
-                                    },
+                                    onClick = { nav.navigateToTab(tab.route) },
                                     icon = { Icon(tab.icon, contentDescription = null) },
                                     // Iets kleiner dan standaard, zodat "Programma's" op een smalle telefoon op één regel past.
                                     label = { Text(tab.label, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelSmall) }
@@ -314,7 +322,8 @@ private fun MainNavigation(
                         onOpenRow = { row -> nav.navigate(Routes.page(row.moreUrl, row.title)) },
                         onOpenKids = { nav.navigate(Routes.KIDS) },
                         onOpenAZ = { nav.navigate(Routes.AZ) },
-                        onWatchLive = { play(PlayRequest.Live) },
+                        onWatchLive = { nav.navigateToTab(Routes.LIVE) },
+                        onSearch = { nav.navigate(Routes.SEARCH) { launchSingleTop = true } },
                         onLogout = appViewModel::logout
                     )
                 }
@@ -325,21 +334,34 @@ private fun MainNavigation(
                         rows = rows.data.orEmpty(),
                         castAvailable = playback.castAvailable,
                         gridViewModel = { key, source -> viewModel(key = key) { GridViewModel(app, source) } },
-                        onOpenProgram = { nav.navigate(Routes.program(it)) }
+                        onOpenProgram = { nav.navigate(Routes.program(it)) },
+                        onSearch = { nav.navigate(Routes.SEARCH) { launchSingleTop = true } }
                     )
                 }
                 composable(Routes.SEARCH) {
                     SearchScreen(
-                        viewModel = viewModel(key = "az") { GridViewModel(app, GridSource.AZ) },
-                        castAvailable = playback.castAvailable,
-                        onOpenProgram = { nav.navigate(Routes.program(it)) }
+                        viewModel = viewModel { SearchViewModel(app) },
+                        onOpenProgram = { nav.navigate(Routes.program(it)) },
+                        onBack = { nav.popBackStack() }
+                    )
+                }
+                composable(Routes.LIVE) {
+                    LiveScreen(
+                        playback = app.playback,
+                        viewModel = viewModel { GuideViewModel(app) },
+                        onFullscreen = { nav.navigate(Routes.player(keep = true)) { launchSingleTop = true } },
+                        onOpenGuideItem = { item ->
+                            nav.navigate(Routes.program(ProgramItem(id = item.programSlug, slug = item.programSlug, title = item.title, thumbnailUrl = item.imageUrl)))
+                        },
+                        onSearch = { nav.navigate(Routes.SEARCH) { launchSingleTop = true } }
                     )
                 }
                 composable(Routes.MY_LIST) {
                     MyListScreen(
                         viewModel = viewModel { MyListViewModel(app) },
                         castAvailable = playback.castAvailable,
-                        onOpenProgram = { nav.navigate(Routes.program(it)) }
+                        onOpenProgram = { nav.navigate(Routes.program(it)) },
+                        onSearch = { nav.navigate(Routes.SEARCH) { launchSingleTop = true } }
                     )
                 }
                 composable(Routes.KIDS) {
@@ -405,9 +427,13 @@ private fun MainNavigation(
                         onBack = { nav.popBackStack() }
                     )
                 }
-                composable(Routes.PLAYER) {
+                composable(
+                    Routes.PLAYER,
+                    arguments = listOf(navArgument("keep") { type = NavType.BoolType; defaultValue = false })
+                ) { entry ->
                     PlayerScreen(
                         playback = app.playback,
+                        keepPlayingOnClose = entry.arguments?.getBoolean("keep") == true,
                         isInPip = isInPip,
                         onPipEligibleChanged = onPipEligibleChanged,
                         onBack = { nav.popBackStack() }
@@ -423,7 +449,7 @@ private fun MainNavigation(
  * zoals de zijbalk van de TV-app.
  */
 @Composable
-private fun Family7Rail(isSelected: (String) -> Boolean, onSelect: (String) -> Unit) {
+private fun Family7Rail(isSelected: (String) -> Boolean, onSelect: (String) -> Unit, onSearch: () -> Unit) {
     NavigationRail(
         containerColor = nl.family7.mobile.ui.theme.DarkSurface,
         header = {
@@ -434,6 +460,10 @@ private fun Family7Rail(isSelected: (String) -> Boolean, onSelect: (String) -> U
                     .padding(top = 16.dp, bottom = 24.dp)
                     .size(width = 48.dp, height = 43.dp)
             )
+            // Zoeken als rond knopje bovenin de zijbalk.
+            FilledTonalIconButton(onClick = onSearch, modifier = Modifier.padding(bottom = 16.dp)) {
+                Icon(Icons.Filled.Search, contentDescription = "Zoeken")
+            }
         },
         modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Vertical + WindowInsetsSides.Start))
     ) {
@@ -448,14 +478,22 @@ private fun Family7Rail(isSelected: (String) -> Boolean, onSelect: (String) -> U
     }
 }
 
+/** De tab waar het huidige scherm bij hoort: de laatste tab in de stapel. */
+private fun currentTabRoute(stack: List<androidx.navigation.NavBackStackEntry>): String? =
+    stack.lastOrNull { entry -> tabs.any { it.route == entry.destination.route } }?.destination?.route
+
 /** Naar een tab van de onderbalk, zonder een stapel van dezelfde schermen op te bouwen. */
 private fun NavHostController.navigateToTab(route: String) {
+    // Nog eens op de tab waar je al bent (bijvoorbeeld vanuit een programma dat
+    // via de gids geopend is): terug naar het begin van die tab, in plaats van
+    // de opgeslagen stapel met dat programma te herstellen.
+    if (currentTabRoute(currentBackStack.value) == route) {
+        if (currentDestination?.route != route) popBackStack(route, inclusive = false)
+        return
+    }
     navigate(route) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
         restoreState = true
     }
 }
-
-private fun androidx.navigation.NavDestination.hierarchy(): List<String?> =
-    generateSequence(this) { it.parent }.map { it.route }.toList()

@@ -189,4 +189,34 @@ final class Family7ParserTests: XCTestCase {
         XCTAssertEqual(Family7Parser.seasonCountLabel("2026 seizoenen", seasonCount: 0), "2026 seizoenen")
         XCTAssertEqual(Family7Parser.seasonCountLabel("Documentaire", seasonCount: 3), "Documentaire")
     }
+
+    func testGuideItemsReadADayFromTheSite() throws {
+        let json = try JSONSerialization.jsonObject(with: Data(try fixture("tvgids_dag.json").utf8)) as! [String: Any]
+        let doc = try SwiftSoup.parseBodyFragment(json["renderedItems"] as! String, "https://www.family7.nl")
+        let items = Family7Parser.guideItems(doc)
+
+        XCTAssertEqual(items.count, 42)
+        XCTAssertEqual(items.first?.start, "00:30")
+        XCTAssertEqual(items.first?.title, "EuroSpirit")
+        XCTAssertEqual(items.map(\.startMinutes), items.map(\.startMinutes).sorted())
+        XCTAssertTrue(items.contains { $0.title == "Uitzien… en bouwen!" })
+        // Geen Windows-stuurtekens meer in titels of beschrijvingen.
+        XCTAssertFalse(items.contains { ($0.title + $0.description + $0.episode).unicodeScalars.contains { (0x80...0x9F).contains($0.value) } })
+
+        let joyce = try XCTUnwrap(items.first { $0.title == "Joyce Meyer" })
+        XCTAssertEqual(joyce.start, "01:00")
+        XCTAssertEqual(joyce.episode, "Aflevering 194 - Wat doe je als het leven pijn doet?")
+        XCTAssertEqual(joyce.programSlug, "joyce-meyer")
+        XCTAssertEqual(joyce.videoSlug, "2026-194-joyce-meyer")
+        XCTAssertTrue(joyce.imageURL.hasPrefix("https://www.family7.nl/sites/default/files/"))
+        XCTAssertFalse(items.contains { $0.imageURL.contains("fam7logo") })
+    }
+
+    func testSuggestionsPutTitlesStartingWithTheQueryFirst() {
+        let all = ["Into the Amazone", "De Diamant", "Diamant en Goud", "Het Spoor"].map {
+            ProgramItem(id: $0, slug: $0.lowercased().replacingOccurrences(of: " ", with: "-"), title: $0, thumbnailURL: "")
+        }
+        XCTAssertEqual(ProgramItem.suggestions(all, for: "diam").map(\.title), ["Diamant en Goud", "De Diamant"])
+        XCTAssertEqual(ProgramItem.suggestions(all, for: "  ").count, 0)
+    }
 }

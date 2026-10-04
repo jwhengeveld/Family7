@@ -354,3 +354,56 @@ enum StreamURLLifetime {
         return remaining <= 0 ? 0 : min(remaining, 6 * 3600)
     }
 }
+
+extension Family7Parser {
+    // MARK: - tv-gids
+
+    /// De uitzendingen uit de tv-gids van de site (/tv-guide-get-items, het
+    /// "renderedItems"-deel). Items zonder tijd of titel slaan we over; het
+    /// standaard-Family7-logo is geen programmabeeld.
+    static func guideItems(_ doc: Element) -> [GuideItem] {
+        let items = (try? doc.select("li.tv-guide-item").array()) ?? []
+        return items.compactMap { item in
+            let timeText = item.one(".tv-guide-item-time")?.plainText ?? ""
+            guard let range = timeText.range(of: #"\d{1,2}:\d{2}"#, options: .regularExpression) else { return nil }
+            var time = String(timeText[range])
+            if time.count == 4 { time = "0" + time }
+            let title = cleanGuideText(item.one(".tv-guide-item-title")?.plainText ?? "")
+            guard !title.isEmpty else { return nil }
+            let image = (try? item.one(".tv-guide-item-image img")?.attr("src")) ?? ""
+            let links = ((try? item.select("a[href]").array()) ?? []).compactMap { try? $0.attr("href") }
+            func slug(_ pattern: String) -> String {
+                for link in links {
+                    if let match = link.range(of: pattern, options: .regularExpression) {
+                        return String(link[match]).components(separatedBy: "/").last ?? ""
+                    }
+                }
+                return ""
+            }
+            return GuideItem(
+                start: time,
+                title: title,
+                episode: cleanGuideText(item.one(".tv-guide-item-data")?.plainText ?? ""),
+                description: cleanGuideText(item.one(".tv-guide-item-description")?.plainText ?? ""),
+                imageURL: image.isEmpty || image.contains("fam7logo") ? "" : Family7URL.absolute(image),
+                programSlug: slug(#"/programmas/[^/?#]+"#),
+                videoSlug: slug(#"/video/[^/?#]+"#)
+            )
+        }
+    }
+
+    /// De gids bevat Windows-tekens die als stuurcode binnenkomen (U+0080 tot
+    /// U+009F: aanhalingstekens, beletselteken); die worden de echte tekens.
+    static func cleanGuideText(_ text: String) -> String {
+        let fixed = String(String.UnicodeScalarView(text.unicodeScalars.map { scalar -> Unicode.Scalar in
+            guard (0x80...0x9F).contains(scalar.value),
+                  let mapped = String(data: Data([UInt8(scalar.value)]), encoding: .windowsCP1252)?.unicodeScalars.first,
+                  !(0x80...0x9F).contains(mapped.value) else {
+                return (0x80...0x9F).contains(scalar.value) ? " " : scalar
+            }
+            return mapped
+        }))
+        return fixed.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+}

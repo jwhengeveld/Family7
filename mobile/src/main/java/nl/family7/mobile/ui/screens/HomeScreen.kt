@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.MoreVert
@@ -90,6 +91,7 @@ fun HomeScreen(
     onOpenKids: () -> Unit,
     onOpenAZ: () -> Unit,
     onWatchLive: () -> Unit,
+    onSearch: () -> Unit,
     onLogout: () -> Unit
 ) {
     val state by viewModel.rows.state.collectAsStateWithLifecycle()
@@ -108,6 +110,8 @@ fun HomeScreen(
             // Op een tablet staat het embleem al in de zijbalk, zoals op de TV.
             title = { if (!isWideScreen()) Family7Logo(height = 30.dp) },
             actions = {
+                // Zoeken als rond knopje rechtsboven, zoals gebruikelijk op Android.
+                IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, contentDescription = "Zoeken") }
                 if (castAvailable) CastButton()
                 Box {
                     IconButton(onClick = { menuOpen = true }) {

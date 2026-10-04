@@ -207,4 +207,28 @@ class Family7ParserTest {
         assertEquals("2026 seizoenen", Family7Parser.seasonCountLabel("2026 seizoenen", 0))
         assertEquals("Documentaire", Family7Parser.seasonCountLabel("Documentaire", 3))
     }
+
+    @Test
+    fun guideItemsReadsADayFromTheSite() {
+        val html = org.json.JSONObject(fixture("tvgids_dag.json")).getString("renderedItems")
+        val items = Family7Parser.guideItems(Jsoup.parseBodyFragment(html, Family7Parser.BASE_URL))
+
+        assertEquals(42, items.size)
+        assertEquals("00:30", items.first().start)
+        assertEquals("EuroSpirit", items.first().title)
+        // In volgorde van de dag, en het Windows-beletselteken is een echt "…".
+        assertEquals(items.map { it.startMinutes }.sorted(), items.map { it.startMinutes })
+        assertTrue(items.any { it.title == "Uitzien… en bouwen!" })
+        // Ook in beschrijvingen geen stuurtekens meer (Windows-aanhalingstekens).
+        assertTrue(items.none { item -> (item.title + item.description + item.episode).any { it.code in 0x80..0x9F } })
+
+        val joyce = items.first { it.title == "Joyce Meyer" }
+        assertEquals("01:00", joyce.start)
+        assertEquals("Aflevering 194 - Wat doe je als het leven pijn doet?", joyce.episode)
+        assertEquals("joyce-meyer", joyce.programSlug)
+        assertEquals("2026-194-joyce-meyer", joyce.videoSlug)
+        assertTrue(joyce.imageUrl.startsWith("https://www.family7.nl/sites/default/files/"))
+        // Het standaardlogo telt niet als programmabeeld.
+        assertTrue(items.none { it.imageUrl.contains("fam7logo") })
+    }
 }

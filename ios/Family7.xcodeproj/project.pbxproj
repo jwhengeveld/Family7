@@ -16,6 +16,7 @@
 		277791DD4DFF1AF32D3C26D9 /* GoogleCastUIResources.bundle in Resources */ = {isa = PBXBuildFile; fileRef = ABE2AC3A7953F301EE1A958F /* GoogleCastUIResources.bundle */; };
 		2972446BE4514A3986A8BB37 /* CastSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9202E8C2411D1AD9B5ACB4A9 /* CastSetup.swift */; };
 		2C7DD1ED65EAABB90FCF1B19 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 437C27FFE3B56E0BEB9AE88D /* SwiftSoup */; };
+		2DECC21BE0D5CF705D475755 /* tvgids_dag.json in Resources */ = {isa = PBXBuildFile; fileRef = 58E31E59273EF56F6E6E3367 /* tvgids_dag.json */; };
 		2DF560DD8C1B91F868DE8179 /* PlaybackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B1B9F89D7F3DD93E30A4610 /* PlaybackManager.swift */; };
 		2EFF382DC7FF0BB78A5FAEB9 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DE185A54C40813E5AB9652 /* SplashView.swift */; };
 		41969652A20F6F653075B274 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD4E931045D676193117E51 /* Components.swift */; };
@@ -82,6 +83,7 @@
 		44BB4EDF02430B7C22889239 /* StreampartnerPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreampartnerPlayer.swift; sourceTree = "<group>"; };
 		44C634A3557925ED43775459 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		46B3FBC3DAC64F85952D0D97 /* StreampartnerPlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreampartnerPlayerTests.swift; sourceTree = "<group>"; };
+		58E31E59273EF56F6E6E3367 /* tvgids_dag.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tvgids_dag.json; sourceTree = "<group>"; };
 		63A0044AFEC0C4969B48269E /* PageFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageFetcher.swift; sourceTree = "<group>"; };
 		64DE185A54C40813E5AB9652 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		65F6A5BB507904556D0B6D10 /* LiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveView.swift; sourceTree = "<group>"; };
@@ -245,6 +247,7 @@
 				3E8CF1AE189CD2079CF3B1B3 /* programma_13_seizoenen.html */,
 				2F67B0F5DDA857A764076982 /* seizoen_2.json */,
 				6A585A94555D902CF5615171 /* startpagina_nagebouwd.html */,
+				58E31E59273EF56F6E6E3367 /* tvgids_dag.json */,
 				A1B4AF380F6930D6336FAFC8 /* video_publiek.html */,
 			);
 			path = Fixtures;
@@ -408,6 +411,7 @@
 				4697BFBBD7DF33679B7E38D0 /* programma_1_seizoen.html in Resources */,
 				5E35660925C4FBD26C03B3C0 /* seizoen_2.json in Resources */,
 				B68BDB19C12F45A78E87A3AD /* startpagina_nagebouwd.html in Resources */,
+				2DECC21BE0D5CF705D475755 /* tvgids_dag.json in Resources */,
 				88BBC07488256ABC0A6C6907 /* video_publiek.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -589,7 +593,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.3.6;
+				MARKETING_VERSION = 1.4.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -671,7 +675,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.3.6;
+				MARKETING_VERSION = 1.4.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

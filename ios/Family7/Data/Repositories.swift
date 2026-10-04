@@ -377,6 +377,67 @@ final class LiveRepository: @unchecked Sendable {
     private static let lastPlayerKey = "family7.live.lastPlayerURL"
     private static let lastStreamKey = "family7.live.lastStreamURL"
 
+    // MARK: tv-gids
+
+    private let guideSnapshots = SnapshotStore(folder: "family7_guide")
+    private let guideLock = NSLock()
+    private var guideMemory: [String: (at: Date, items: [GuideItem])] = [:]
+    /// De gids verandert zelden; vaker ophalen dan dit is zinloos.
+    private static let guideTTL: TimeInterval = 15 * 60
+
+    /// De programmagids van één dag ("yyyy-MM-dd"), zoals de site hem toont.
+    /// Binnen een kwartier uit het geheugen, anders opnieuw van de site; lukt
+    /// dat niet, dan de laatst bekende versie van schijf.
+    func guide(_ date: String, force: Bool = false) async throws -> [GuideItem] {
+        if !force, let hit = guideLock.withLock({ guideMemory[date] }), Date().timeIntervalSince(hit.at) < Self.guideTTL {
+            return hit.items
+        }
+        let previous = cachedGuide(date)
+        do {
+            let page = try await pages.page("https://www.family7.nl/tv-guide-get-items/\(date)T00:00:00/23:59:59/not_today_search", fresh: true)
+            guard let json = try JSONSerialization.jsonObject(with: Data(page.html.utf8)) as? [String: Any],
+                  let html = json["renderedItems"] as? String else { throw Family7Error("De tv-gids is niet te lezen.") }
+            let fresh = Family7Parser.guideItems(try SwiftSoup.parseBodyFragment(html, "https://www.family7.nl"))
+            // Eén keer een verdacht lege of halve dag houdt de vorige versie vast.
+            let items: [GuideItem]
+            if let previous, !PlausibilityGate.shared.accept("guide:\(date)", previous: previous.count, new: fresh.count) {
+                items = previous
+            } else {
+                items = fresh
+            }
+            guideLock.withLock { guideMemory[date] = (Date(), items) }
+            if !items.isEmpty { guideSnapshots.write(items, "guide_\(date)") }
+            return items
+        } catch {
+            if let previous { return previous }
+            throw error
+        }
+    }
+
+    /// Wat er van een dag al bekend is, zonder netwerk: om meteen iets te tonen.
+    func cachedGuide(_ date: String) -> [GuideItem]? {
+        guideLock.withLock { guideMemory[date]?.items } ?? guideSnapshots.read([GuideItem].self, "guide_\(date)")
+    }
+
+    /// Haalt de gids van gisteren tot overmorgen alvast op de achtergrond op,
+    /// zodat live meteen de gids toont. Wat al vers is, blijft staan.
+    func prefetchGuide() async {
+        for offset in -1...2 { _ = try? await guide(Self.guideDate(offset)) }
+    }
+
+    /// De datum ("yyyy-MM-dd") in Nederland, `offset` dagen vanaf vandaag.
+    static func guideDate(_ offset: Int) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Amsterdam")!
+        let day = calendar.date(byAdding: .day, value: offset, to: Date()) ?? Date()
+        let format = DateFormatter()
+        format.calendar = calendar
+        format.timeZone = calendar.timeZone
+        format.locale = Locale(identifier: "en_US_POSIX")
+        format.dateFormat = "yyyy-MM-dd"
+        return format.string(from: day)
+    }
+
     /// Het programma van nu en het stream-adres. De laatst werkende speler- en
     /// stream-adressen worden lokaal onthouden als noodgreep, omdat
     /// Streampartner regelmatig van host wisselt.

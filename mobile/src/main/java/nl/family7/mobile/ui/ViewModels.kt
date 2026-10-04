@@ -7,9 +7,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nl.family7.core.data.BACKGROUND_REFRESH_MS
 import nl.family7.core.data.CategoryRow
+import nl.family7.core.data.GuideItem
 import nl.family7.core.data.LiveStreamInfo
 import nl.family7.core.data.ProgramDetail
 import nl.family7.core.data.ProgramItem
@@ -112,6 +115,8 @@ class HomeViewModel(private val app: Family7MobileApp) : ViewModel() {
             rows.load()
         }
         refreshLive()
+        // De programmagids alvast klaarzetten, zodat live meteen de gids toont.
+        viewModelScope.launch { runCatching { app.live.prefetchGuide() } }
     }
 
     /** Stil verversen zolang het startscherm zichtbaar is, net als op de tv. */
@@ -150,6 +155,161 @@ class BrowseViewModel(private val app: Family7MobileApp) : ViewModel() {
 
     init {
         rows.load()
+    }
+}
+
+// ------------------------------------------------------------- zoeken
+
+/**
+ * Zoeken met suggesties: de complete A-Z-lijst van de site, gefilterd op het
+ * toestel zelf, en de laatste zoekopdrachten (alleen lokaal bewaard).
+ */
+class SearchViewModel(private val app: Family7MobileApp) : ViewModel() {
+
+    val programs = Loader(
+        scope = viewModelScope,
+        network = app.network,
+        initial = app.catalog.azCache.snapshot()
+    ) { force -> app.catalog.getAllAZPrograms(forceRefresh = force) }
+
+    private val prefs = app.getSharedPreferences("family7_search", android.content.Context.MODE_PRIVATE)
+    private val _recent = MutableStateFlow(readRecent())
+    val recent: StateFlow<List<String>> = _recent.asStateFlow()
+
+    init {
+        programs.load()
+    }
+
+    /** Onthoudt een zoekopdracht bovenaan de lijst, zonder dubbele. */
+    fun remember(query: String) {
+        val clean = query.trim()
+        if (clean.length < 2) return
+        val updated = (listOf(clean) + _recent.value.filterNot { it.equals(clean, ignoreCase = true) }).take(MAX_RECENT)
+        _recent.value = updated
+        prefs.edit().putString(KEY_RECENT, updated.joinToString("\n")).apply()
+    }
+
+    fun clearRecent() {
+        _recent.value = emptyList()
+        prefs.edit().remove(KEY_RECENT).apply()
+    }
+
+    private fun readRecent(): List<String> =
+        prefs.getString(KEY_RECENT, null)?.split("\n")?.filter { it.isNotBlank() }.orEmpty()
+
+    private companion object {
+        const val KEY_RECENT = "recent"
+        const val MAX_RECENT = 8
+    }
+}
+
+/**
+ * Suggesties voor een zoekopdracht: titels die ermee beginnen eerst, dan
+ * titels met een woord dat ermee begint, dan de rest die het bevat.
+ */
+fun List<ProgramItem>.suggestionsFor(query: String, limit: Int = 30): List<ProgramItem> {
+    val needle = query.trim().lowercase()
+    if (needle.isEmpty()) return emptyList()
+    val slugNeedle = needle.replace(' ', '-')
+    return mapNotNull { program ->
+        val title = program.title.lowercase()
+        val rank = when {
+            title.startsWith(needle) -> 0
+            title.split(' ', '-', '\'').any { it.startsWith(needle) } -> 1
+            title.contains(needle) || program.slug.contains(slugNeedle) -> 2
+            else -> return@mapNotNull null
+        }
+        rank to program
+    }.sortedWith(compareBy({ it.first }, { it.second.title.lowercase() })).take(limit).map { it.second }
+}
+
+// ------------------------------------------------------------- live en gids
+
+/** Een dag in de programmagids: de datum voor de site en het woord voor de kijker. */
+data class GuideDay(val date: String, val label: String)
+
+/**
+ * Het live-scherm: welke dag de gids toont, de gids van die dag (van de site,
+ * met lokale cache) en de klok in Nederlandse tijd voor "nu".
+ */
+class GuideViewModel(private val app: Family7MobileApp) : ViewModel() {
+
+    /** Gisteren tot en met over zes dagen; de site heeft er niet meer. */
+    private val _days = MutableStateFlow(guideDays())
+    val days: StateFlow<List<GuideDay>> = _days.asStateFlow()
+
+    private val _selected = MutableStateFlow(TODAY_INDEX)
+    val selected: StateFlow<Int> = _selected.asStateFlow()
+
+    private val _guide = MutableStateFlow(LoadState<List<GuideItem>>())
+    val guide: StateFlow<LoadState<List<GuideItem>>> = _guide.asStateFlow()
+
+    /** Minuten na middernacht in Nederland, elke halve minuut bijgewerkt. */
+    private val _nowMinutes = MutableStateFlow(amsterdamMinutes())
+    val nowMinutes: StateFlow<Int> = _nowMinutes.asStateFlow()
+
+    private var loader: Loader<List<GuideItem>>? = null
+    private var follow: Job? = null
+
+    init {
+        select(TODAY_INDEX)
+        viewModelScope.launch {
+            while (true) {
+                delay(30_000)
+                val minutes = amsterdamMinutes()
+                // Na middernacht is "vandaag" een andere dag: dan opnieuw beginnen.
+                if (minutes < _nowMinutes.value) {
+                    _days.value = guideDays()
+                    select(_selected.value)
+                }
+                _nowMinutes.value = minutes
+            }
+        }
+    }
+
+    fun select(index: Int) {
+        val day = _days.value.getOrNull(index) ?: return
+        _selected.value = index
+        follow?.cancel()
+        val created = Loader(viewModelScope, app.network, app.live.cachedGuide(day.date)) { force ->
+            app.live.getGuide(day.date, force)
+        }
+        loader = created
+        follow = viewModelScope.launch { created.state.collect { _guide.value = it } }
+        created.load()
+        // De dagen eromheen alvast ophalen: wisselen van dag is dan direct.
+        viewModelScope.launch {
+            listOf(index - 1, index + 1).mapNotNull { _days.value.getOrNull(it) }.forEach { runCatching { app.live.getGuide(it.date) } }
+        }
+    }
+
+    fun refresh() {
+        loader?.refresh()
+    }
+
+    private companion object {
+        const val TODAY_INDEX = 1
+        val zone: java.util.TimeZone = java.util.TimeZone.getTimeZone("Europe/Amsterdam")
+
+        fun amsterdamMinutes(): Int = java.util.Calendar.getInstance(zone).let {
+            it.get(java.util.Calendar.HOUR_OF_DAY) * 60 + it.get(java.util.Calendar.MINUTE)
+        }
+
+        fun guideDays(): List<GuideDay> {
+            val dutch = java.util.Locale("nl", "NL")
+            val iso = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).apply { timeZone = zone }
+            val label = java.text.SimpleDateFormat("EEE d MMM", dutch).apply { timeZone = zone }
+            return (-1..6).map { offset ->
+                val day = java.util.Calendar.getInstance(zone).apply { add(java.util.Calendar.DAY_OF_YEAR, offset) }.time
+                val name = when (offset) {
+                    -1 -> "Gisteren"
+                    0 -> "Vandaag"
+                    1 -> "Morgen"
+                    else -> label.format(day).replace(".", "").replaceFirstChar { it.uppercase(dutch) }
+                }
+                GuideDay(iso.format(day), name)
+            }
+        }
     }
 }
 

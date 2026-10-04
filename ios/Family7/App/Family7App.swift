@@ -81,7 +81,7 @@ struct MainTabs: View {
         TabView(selection: $model.selectedTab) {
             NavigationStack(path: $model.homePath) { HomeView().family7Destinations() }.miniCastBar()
                 .tabItem { Label("Start", systemImage: "house.fill") }.tag(AppTab.home)
-            NavigationStack { LiveView() }.miniCastBar()
+            NavigationStack { LiveView().family7Destinations() }.miniCastBar()
                 .tabItem { Label("Live", systemImage: "dot.radiowaves.left.and.right") }.tag(AppTab.live)
             // Bladeren, zoals "On Demand" op tv.
             NavigationStack { BrowseView().family7Destinations() }.miniCastBar()
@@ -92,8 +92,6 @@ struct MainTabs: View {
                 NavigationStack { GridView(destination: .kids).family7Destinations() }.miniCastBar()
                     .tabItem { Label("Kids", systemImage: "figure.and.child.holdinghands") }.tag(AppTab.kids)
             }
-            NavigationStack { SearchView().family7Destinations() }.miniCastBar()
-                .tabItem { Label("Zoeken", systemImage: "magnifyingglass") }.tag(AppTab.search)
             NavigationStack { MyListView().family7Destinations() }.miniCastBar()
                 .tabItem { Label("Mijn lijst", systemImage: "bookmark.fill") }.tag(AppTab.myList)
         }
@@ -123,6 +121,7 @@ extension View {
     func family7Destinations() -> some View {
         navigationDestination(for: ProgramItem.self) { ProgramView(preview: $0) }
             .navigationDestination(for: GridDestination.self) { GridView(destination: $0) }
+            .navigationDestination(for: SearchRoute.self) { _ in SearchView() }
     }
 
     /// Tijdens het casten een balk onderin, zodat de bediening binnen bereik blijft.

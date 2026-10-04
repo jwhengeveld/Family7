@@ -127,7 +127,7 @@ struct BrowseView: View {
         }
         .background(Color.family7Background)
         .navigationTitle("Programma's")
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { TVButtons() } }
+        .toolbar { ToolbarItemGroup(placement: .topBarTrailing) { SearchButton(); TVButtons() } }
         .task {
             let catalog = model.catalog
             if let cached = catalog.homeCache.snapshot { rows = cached }
@@ -136,31 +136,91 @@ struct BrowseView: View {
     }
 }
 
-/// Zoeken filtert de complete A-Z-lijst op het toestel zelf: geen wachttijd per
-/// letter, en ook zonder netwerk doorzoekbaar zodra de lijst er één keer is.
+/// Naar het zoekscherm, als waarde in de navigatie.
+struct SearchRoute: Hashable {}
+
+/// Zoeken als rond knopje met vergrootglas rechtsboven, zoals gebruikelijk.
+struct SearchButton: View {
+    var body: some View {
+        NavigationLink(value: SearchRoute()) {
+            Image(systemName: "magnifyingglass")
+        }
+        .accessibilityLabel("Zoeken")
+    }
+}
+
+/// Zoeken met suggesties: het zoekveld staat meteen open, daaronder suggesties
+/// terwijl je typt. Zonder zoekwoord staan de laatste zoekopdrachten er.
+/// Gefilterd wordt op het toestel zelf, dus ook zonder netwerk zodra de lijst
+/// er één keer is.
 struct SearchView: View {
     @Environment(AppModel.self) private var model
     @State private var loader: Loader<[ProgramItem]>?
     @State private var query = ""
+    @State private var isPresented = false
+    @AppStorage("family7.search.recent") private var recentText = ""
+
+    private var recent: [String] { recentText.split(separator: "\n").map(String.init) }
 
     var body: some View {
-        ScrollView {
-            if let loader {
-                StatusBanner(isOffline: !model.network.isOnline,
-                             error: loader.value == nil ? nil : loader.error) { loader.load(force: true) }
-                if loader.showFullError {
-                    FullScreenError(message: loader.error ?? "") { loader.load(force: true) }.frame(height: 400)
+        List {
+            if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                if recent.isEmpty {
+                    Text("Typ de naam van een programma. Suggesties verschijnen terwijl je typt.")
+                        .foregroundStyle(Color.family7Secondary)
+                        .listRowBackground(Color.clear)
                 } else {
-                    ProgramGrid(programs: loader.value.map(filter),
-                                emptyMessage: query.isEmpty ? "Er zijn geen programma's gevonden." : "Niets gevonden voor \"\(query)\".")
+                    Section {
+                        ForEach(recent, id: \.self) { text in
+                            Button { query = text } label: {
+                                Label(text, systemImage: "clock.arrow.circlepath").foregroundStyle(.white)
+                            }
+                            .listRowBackground(Color.clear)
+                        }
+                    } header: {
+                        HStack {
+                            Text("Recent gezocht")
+                            Spacer()
+                            Button("Wissen") { recentText = "" }.font(.footnote)
+                        }
+                    }
                 }
+            } else if let all = loader?.value {
+                let suggestions = ProgramItem.suggestions(all, for: query)
+                if suggestions.isEmpty {
+                    Text("Niets gevonden voor \"\(query.trimmingCharacters(in: .whitespaces))\".")
+                        .foregroundStyle(Color.family7Secondary)
+                        .listRowBackground(Color.clear)
+                } else {
+                    ForEach(suggestions) { program in
+                        NavigationLink(value: program) {
+                            HStack(spacing: 12) {
+                                RemoteImage(url: program.thumbnailURL)
+                                    .frame(width: 96, height: 54)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                Text(program.title).lineLimit(2)
+                            }
+                        }
+                        .simultaneousGesture(TapGesture().onEnded { remember(query) })
+                        .listRowBackground(Color.clear)
+                    }
+                }
+            } else if let loader, loader.showFullError {
+                FullScreenError(message: loader.error ?? "") { loader.load(force: true) }
+                    .listRowBackground(Color.clear)
+            } else {
+                ProgressView().frame(maxWidth: .infinity).listRowBackground(Color.clear)
             }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .background(Color.family7Background)
         .navigationTitle("Zoeken")
-        .searchable(text: $query, prompt: "Zoek een programma")
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { TVButtons() } }
-        .refreshable { await loader?.refresh() }
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $query, isPresented: $isPresented,
+                    placement: .navigationBarDrawer(displayMode: .always), prompt: "Zoek een programma")
+        .onSubmit(of: .search) { remember(query) }
+        .onAppear { isPresented = true }
         .task {
             guard loader == nil else { return }
             let catalog = model.catalog
@@ -171,11 +231,34 @@ struct SearchView: View {
         .onChange(of: model.network.reconnects) { loader?.networkRestored() }
     }
 
-    private func filter(_ all: [ProgramItem]) -> [ProgramItem] {
+    /// Onthoudt een zoekopdracht bovenaan, zonder dubbele; alleen op dit toestel.
+    private func remember(_ text: String) {
+        let clean = text.trimmingCharacters(in: .whitespaces)
+        guard clean.count >= 2 else { return }
+        let updated = [clean] + recent.filter { $0.caseInsensitiveCompare(clean) != .orderedSame }
+        recentText = updated.prefix(8).joined(separator: "\n")
+    }
+}
+
+extension ProgramItem {
+    /// Suggesties voor een zoekopdracht: titels die ermee beginnen eerst, dan
+    /// titels met een woord dat ermee begint, dan de rest die het bevat.
+    static func suggestions(_ all: [ProgramItem], for query: String, limit: Int = 30) -> [ProgramItem] {
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !needle.isEmpty else { return all }
+        guard !needle.isEmpty else { return [] }
         let slugNeedle = needle.replacingOccurrences(of: " ", with: "-")
-        return all.filter { $0.title.lowercased().contains(needle) || $0.slug.contains(slugNeedle) }
+        let ranked: [(Int, ProgramItem)] = all.compactMap { program in
+            let title = program.title.lowercased()
+            if title.hasPrefix(needle) { return (0, program) }
+            let words = title.split(whereSeparator: { $0 == " " || $0 == "-" || $0 == "'" })
+            if words.contains(where: { $0.hasPrefix(needle) }) { return (1, program) }
+            if title.contains(needle) || program.slug.contains(slugNeedle) { return (2, program) }
+            return nil
+        }
+        return ranked
+            .sorted { $0.0 != $1.0 ? $0.0 < $1.0 : $0.1.title.lowercased() < $1.1.title.lowercased() }
+            .prefix(limit)
+            .map(\.1)
     }
 }
 
@@ -193,7 +276,7 @@ struct MyListView: View {
         }
         .background(Color.family7Background)
         .navigationTitle("Mijn lijst")
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { TVButtons() } }
+        .toolbar { ToolbarItemGroup(placement: .topBarTrailing) { SearchButton(); TVButtons() } }
         .refreshable { await model.refreshMyList() }
         .task { await model.refreshMyList() }
     }

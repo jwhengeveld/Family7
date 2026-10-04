@@ -1,6 +1,35 @@
 package nl.family7.mobile.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import nl.family7.mobile.ui.SearchViewModel
+import nl.family7.mobile.ui.suggestionsFor
+import nl.family7.mobile.ui.components.RemoteImage
+import nl.family7.mobile.ui.theme.DarkSurfaceVariant
+import nl.family7.mobile.ui.theme.Family7Red
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -25,7 +54,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -81,50 +109,129 @@ fun GridScreen(
 }
 
 /**
- * Zoeken filtert de complete A-Z-lijst op het toestel zelf: geen wachttijd
- * per letter, en ook zonder netwerk doorzoekbaar zodra de lijst er één keer is.
+ * Zoeken met suggesties, zoals gebruikelijk op Android: een zoekveld bovenin
+ * met het toetsenbord meteen open, daaronder suggesties terwijl je typt. Zonder
+ * zoekwoord staan de laatste zoekopdrachten er. Gefilterd wordt op het toestel
+ * zelf, dus ook zonder netwerk zodra de lijst er één keer is.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    viewModel: GridViewModel,
-    castAvailable: Boolean,
-    onOpenProgram: (ProgramItem) -> Unit
+    viewModel: SearchViewModel,
+    onOpenProgram: (ProgramItem) -> Unit,
+    onBack: () -> Unit
 ) {
     val state by viewModel.programs.state.collectAsStateWithLifecycle()
+    val recent by viewModel.recent.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
+    val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(Unit) { focus.requestFocus() }
 
-    val filtered = remember(state.data, query) {
-        val all = state.data.orEmpty()
-        val q = query.trim().lowercase()
-        if (q.isEmpty()) all
-        else all.filter { it.title.lowercase().contains(q) || it.slug.contains(q.replace(' ', '-')) }
+    val suggestions = remember(state.data, query) { state.data.orEmpty().suggestionsFor(query) }
+
+    fun open(program: ProgramItem) {
+        viewModel.remember(query.ifBlank { program.title })
+        keyboard?.hide()
+        onOpenProgram(program)
     }
 
-    Column(Modifier.fillMaxSize()) {
-        ScreenBar("Zoeken", castAvailable, onBack = null)
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            placeholder = { Text("Zoek een programma") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-            trailingIcon = {
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Wissen") }
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Terug") }
+            TextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("Zoek een programma") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, contentDescription = "Wissen") }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedContainerColor = DarkSurfaceVariant,
+                    unfocusedContainerColor = DarkSurfaceVariant
+                ),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    suggestions.firstOrNull()?.let(::open) ?: keyboard?.hide()
+                }),
+                modifier = Modifier.weight(1f).focusRequester(focus)
+            )
+        }
+        StatusBanner(isOffline = state.isOffline, error = state.error.takeIf { state.data != null }, isRefreshing = false, onRetry = { viewModel.programs.refresh() })
+
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            when {
+                query.isBlank() && recent.isNotEmpty() -> {
+                    item(key = "recent-title") {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp)) {
+                            Text("Recent gezocht", style = MaterialTheme.typography.titleSmall, color = TextSecondary, modifier = Modifier.weight(1f))
+                            TextButton(onClick = viewModel::clearRecent) { Text("Wissen") }
+                        }
+                    }
+                    items(recent, key = { "recent-$it" }) { text ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable { query = text }.padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Icon(Icons.Filled.History, contentDescription = null, tint = TextSecondary)
+                            Spacer(Modifier.width(16.dp))
+                            Text(text, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
                 }
-            },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
-        )
-        ProgramGrid(
-            state = state.copy(data = state.data?.let { filtered }),
-            emptyMessage = if (query.isBlank()) "Er zijn geen programma's gevonden." else "Niets gevonden voor \"$query\".",
-            onRetry = { viewModel.programs.refresh() },
-            onOpenProgram = onOpenProgram
-        )
+
+                query.isBlank() -> item(key = "hint") {
+                    Text(
+                        "Typ de naam van een programma. Suggesties verschijnen terwijl je typt.",
+                        color = TextSecondary,
+                        modifier = Modifier.padding(24.dp)
+                    )
+                }
+
+                state.data == null && state.showFullError -> item(key = "error") {
+                    FullScreenError(state.error.orEmpty(), onRetry = { viewModel.programs.refresh() })
+                }
+
+                state.data == null -> item(key = "loading") {
+                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Family7Red)
+                    }
+                }
+
+                suggestions.isEmpty() -> item(key = "none") {
+                    Text("Niets gevonden voor \"${query.trim()}\".", color = TextSecondary, modifier = Modifier.padding(24.dp))
+                }
+
+                else -> items(suggestions, key = { it.slug }) { program ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable { open(program) }.padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        RemoteImage(program.thumbnailUrl, null, Modifier.width(96.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(6.dp)))
+                        Spacer(Modifier.width(16.dp))
+                        Text(highlighted(program.title, query.trim()), style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Het getypte deel van de titel vet, zodat te zien is waarom iets past. */
+private fun highlighted(title: String, query: String): AnnotatedString = buildAnnotatedString {
+    val start = if (query.isEmpty()) -1 else title.indexOf(query, ignoreCase = true)
+    if (start < 0) {
+        append(title)
+    } else {
+        append(title.substring(0, start))
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) { append(title.substring(start, start + query.length)) }
+        append(title.substring(start + query.length))
     }
 }
 
@@ -149,7 +256,8 @@ fun BrowseScreen(
     rows: List<CategoryRow>,
     castAvailable: Boolean,
     gridViewModel: @Composable (key: String, source: GridSource) -> GridViewModel,
-    onOpenProgram: (ProgramItem) -> Unit
+    onOpenProgram: (ProgramItem) -> Unit,
+    onSearch: () -> Unit
 ) {
     val choices = remember(rows) {
         val fixed = listOf(
@@ -176,7 +284,7 @@ fun BrowseScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenBar("Programma's", castAvailable, onBack = null)
+        ScreenBar("Programma's", castAvailable, onBack = null, onSearch = onSearch)
         LazyRow(
             state = chipState,
             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -220,12 +328,13 @@ fun BrowseScreen(
 fun MyListScreen(
     viewModel: MyListViewModel,
     castAvailable: Boolean,
-    onOpenProgram: (ProgramItem) -> Unit
+    onOpenProgram: (ProgramItem) -> Unit,
+    onSearch: () -> Unit
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     Column(Modifier.fillMaxSize()) {
-        ScreenBar("Mijn lijst", castAvailable, onBack = null)
+        ScreenBar("Mijn lijst", castAvailable, onBack = null, onSearch = onSearch)
         ProgramGrid(
             state = LoadState(
                 data = items.takeIf { it.isNotEmpty() || state.data != null },
@@ -243,7 +352,7 @@ fun MyListScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ScreenBar(title: String, castAvailable: Boolean, onBack: (() -> Unit)?) {
+private fun ScreenBar(title: String, castAvailable: Boolean, onBack: (() -> Unit)?, onSearch: (() -> Unit)? = null) {
     TopAppBar(
         title = { Text(title) },
         navigationIcon = {
@@ -253,7 +362,11 @@ private fun ScreenBar(title: String, castAvailable: Boolean, onBack: (() -> Unit
                 }
             }
         },
-        actions = { if (castAvailable) CastButton() },
+        actions = {
+            // Zoeken als rond knopje rechtsboven, zoals gebruikelijk op Android.
+            if (onSearch != null) IconButton(onClick = onSearch) { Icon(Icons.Filled.Search, contentDescription = "Zoeken") }
+            if (castAvailable) CastButton()
+        },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
     )
 }

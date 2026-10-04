@@ -82,3 +82,24 @@ data class PlayableMedia(
     val programSlug: String = "",
     val resumePositionMs: Long = 0L
 )
+
+/**
+ * Eén uitzending in de programmagids van de site. [start] is "HH:mm" in
+ * Nederlandse tijd; de dag staat bij de lijst waar het item in zit.
+ */
+data class GuideItem(
+    val start: String,
+    val title: String,
+    val episode: String = "",
+    val description: String = "",
+    val imageUrl: String = "",
+    /** Het programma op de site, als de gids ernaar linkt. */
+    val programSlug: String = "",
+    /** De aflevering die al terug te kijken is, als de gids ernaar linkt. */
+    val videoSlug: String = ""
+) {
+    /** Minuten na middernacht, om het "nu" te bepalen. */
+    val startMinutes: Int
+        get() = start.split(":").let { (it.getOrNull(0)?.toIntOrNull() ?: 0) * 60 + (it.getOrNull(1)?.toIntOrNull() ?: 0) }
+}
+
