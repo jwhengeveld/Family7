@@ -21,6 +21,7 @@ import com.google.android.gms.cast.framework.CastOptions
 import com.google.android.gms.cast.framework.OptionsProvider
 import com.google.android.gms.cast.framework.SessionProvider
 import com.google.android.gms.cast.framework.media.CastMediaOptions
+import com.google.android.gms.cast.framework.media.MediaIntentReceiver
 import com.google.android.gms.cast.framework.media.NotificationOptions
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
@@ -42,6 +43,18 @@ class CastOptionsProvider : OptionsProvider {
         val notification = NotificationOptions.Builder()
             // Een tik op de melding brengt de gebruiker terug in de app.
             .setTargetActivityClassName(MainActivity::class.java.name)
+            // Terug, afspelen/pauzeren, vooruit en stoppen; de middelste twee
+            // ook in de compacte weergave op het vergrendelscherm.
+            .setActions(
+                listOf(
+                    MediaIntentReceiver.ACTION_REWIND,
+                    MediaIntentReceiver.ACTION_TOGGLE_PLAYBACK,
+                    MediaIntentReceiver.ACTION_FORWARD,
+                    MediaIntentReceiver.ACTION_STOP_CASTING
+                ),
+                intArrayOf(1, 3)
+            )
+            .setSkipStepMs(30_000)
             .build()
         val media = CastMediaOptions.Builder()
             .setNotificationOptions(notification)

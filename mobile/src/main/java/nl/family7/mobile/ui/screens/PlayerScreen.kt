@@ -95,8 +95,9 @@ fun PlayerScreen(
     val currentOnBack by rememberUpdatedState(onBack)
 
     // Niets meer om af te spelen (bijvoorbeeld na het herstarten van de app).
-    LaunchedEffect(state.request) {
-        if (state.request == null) currentOnBack()
+    // Is de tv verbonden, dan blijft het scherm: dan is het "klaar om te casten".
+    LaunchedEffect(state.request, state.isCasting) {
+        if (state.request == null && !state.isCasting) currentOnBack()
     }
 
     // Het scherm sluiten stopt de weergave op de telefoon; draaien niet.
@@ -154,7 +155,7 @@ fun PlayerScreen(
             .background(Color.Black)
     ) {
         if (state.isCasting) {
-            CastingView(state = state, player = player, onBack = onBack, onStopCasting = playback::stopCasting)
+            CastController(state = state, player = player, playback = playback, onBack = onBack)
         } else {
             LocalPlayerView(state = state, player = player, isInPip = isInPip, onBack = onBack)
         }
@@ -228,81 +229,6 @@ private fun LocalPlayerView(state: PlaybackState, player: Player?, isInPip: Bool
     }
 }
 
-/** Tijdens het casten: de omslag, waar het speelt, en de bediening op afstand. */
-@OptIn(UnstableApi::class)
-@Composable
-private fun CastingView(state: PlaybackState, player: Player?, onBack: () -> Unit, onStopCasting: () -> Unit) {
-    Box(Modifier.fillMaxSize()) {
-        RemoteImage(state.artworkUrl, null, Modifier.fillMaxSize())
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.72f))
-        )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .statusBarsPadding()
-                .padding(4.dp)
-                .fillMaxWidth()
-        ) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Terug") }
-            Spacer(Modifier.weight(1f))
-            CastButton()
-        }
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(24.dp)
-        ) {
-            Icon(Icons.Filled.CastConnected, contentDescription = null, tint = Family7Red, modifier = Modifier.size(56.dp))
-            Spacer(Modifier.height(16.dp))
-            Text(state.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            if (state.subtitle.isNotBlank()) {
-                Text(state.subtitle, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = TextAlign.Center)
-            }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "Speelt af op ${state.castDeviceName ?: "uw tv"}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
-            )
-            if (state.isLoading) {
-                Spacer(Modifier.height(16.dp))
-                CircularProgressIndicator(color = Family7Red, modifier = Modifier.size(28.dp))
-            }
-            Spacer(Modifier.height(16.dp))
-            OutlinedButton(onClick = onStopCasting) { Text("Op deze telefoon verder kijken") }
-        }
-
-        AndroidView(
-            factory = { ctx ->
-                PlayerControlView(ctx).apply {
-                    showTimeoutMs = 0
-                    setShowNextButton(false)
-                    setShowPreviousButton(false)
-                    show()
-                }
-            },
-            update = { view ->
-                if (view.player !== player) view.player = player
-                view.setShowFastForwardButton(!state.isLive)
-                view.setShowRewindButton(!state.isLive)
-                view.show()
-            },
-            onRelease = { it.player = null },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .height(160.dp)
-        )
-    }
-}
-
 @Composable
 private fun ErrorOverlay(state: PlaybackState, onRetry: () -> Unit, onPlayOnPhone: () -> Unit, onBack: () -> Unit) {
     Box(
@@ -330,53 +256,6 @@ private fun ErrorOverlay(state: PlaybackState, onRetry: () -> Unit, onPlayOnPhon
                     OutlinedButton(onClick = onBack) { Text("Terug") }
                 }
             }
-        }
-    }
-}
-
-/**
- * Balk onderin tijdens het casten, zodat de bediening binnen handbereik
- * blijft terwijl de kijker verder bladert. Een tik opent de volledige bediening.
- */
-@Composable
-fun MiniCastBar(state: PlaybackState, onTogglePlay: () -> Unit, onOpen: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DarkSurfaceVariant)
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-    ) {
-        RemoteImage(
-            state.artworkUrl,
-            null,
-            Modifier
-                .size(width = 64.dp, height = 36.dp)
-                .clip(RoundedCornerShape(4.dp))
-        )
-        Column(
-            Modifier
-                .weight(1f)
-                .padding(horizontal = 12.dp)
-        ) {
-            Text(state.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Cast, contentDescription = null, tint = Family7Red, modifier = Modifier.size(12.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    state.castDeviceName ?: "Casten",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
-                    maxLines = 1
-                )
-            }
-        }
-        IconButton(onClick = onTogglePlay) {
-            Icon(
-                if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = if (state.isPlaying) "Pauzeren" else "Afspelen"
-            )
         }
     }
 }

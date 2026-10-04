@@ -44,6 +44,7 @@
 		BC85AB5EAF07E9BE52A529DE /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0542A072E5598A9A9F64E551 /* Models.swift */; };
 		BD4396BD426217E095C5C8CB /* CachingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41BA05F7F6D8F5D7350D3B92 /* CachingTests.swift */; };
 		C20E36E4CE351867745981DE /* Family7App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763A8AB7819BB8FC91F2964F /* Family7App.swift */; };
+		CFC9DB58982049AEABA023E9 /* CastControllerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B965B1F2EEAFD60B2CACA68D /* CastControllerView.swift */; };
 		D8E6BF4299949FFBCE2DACFF /* inlogpagina.html in Resources */ = {isa = PBXBuildFile; fileRef = 1EED12CB684C24B973457456 /* inlogpagina.html */; };
 		E9E9C5E0F90D0E3C2B188207 /* Repositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB42B73BC61B1798711138BC /* Repositories.swift */; };
 		EF84C834A1ACA0E634AAE278 /* GoogleSansBold.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 98E156CA0C87903391106107 /* GoogleSansBold.bundle */; };
@@ -97,6 +98,7 @@
 		ABE2AC3A7953F301EE1A958F /* GoogleCastUIResources.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = GoogleCastUIResources.bundle; sourceTree = "<group>"; };
 		AD41AF842B268AB08FCC72EA /* Family7Parser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Family7Parser.swift; sourceTree = "<group>"; };
 		B87C91BD1D04460EDF902DAA /* GoogleCast.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = GoogleCast.xcframework; path = Vendor/GoogleCast.xcframework; sourceTree = "<group>"; };
+		B965B1F2EEAFD60B2CACA68D /* CastControllerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CastControllerView.swift; sourceTree = "<group>"; };
 		BEE120120EC09F966E038F7A /* ImagePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePipeline.swift; sourceTree = "<group>"; };
 		C5915D2E41CA8E5BC97ED068 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		CB42B73BC61B1798711138BC /* Repositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Repositories.swift; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 		5BED580E38963652AD2A725E /* Screens */ = {
 			isa = PBXGroup;
 			children = (
+				B965B1F2EEAFD60B2CACA68D /* CastControllerView.swift */,
 				16E291DF49679EFB2880EDDD /* HomeView.swift */,
 				154DBC2A24A1EF4A139A32EB /* ListViews.swift */,
 				65F6A5BB507904556D0B6D10 /* LiveView.swift */,
@@ -443,6 +446,7 @@
 			files = (
 				AE7B7DD52B6D80AF695B69D2 /* AppModel.swift in Sources */,
 				4FE225F532E8D55C8F9B1DF4 /* Caching.swift in Sources */,
+				CFC9DB58982049AEABA023E9 /* CastControllerView.swift in Sources */,
 				2972446BE4514A3986A8BB37 /* CastSetup.swift in Sources */,
 				41969652A20F6F653075B274 /* Components.swift in Sources */,
 				C20E36E4CE351867745981DE /* Family7App.swift in Sources */,
@@ -585,7 +589,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.3.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -667,7 +671,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.3.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

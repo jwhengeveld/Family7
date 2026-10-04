@@ -18,7 +18,10 @@ struct PlayerView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if landscape {
+            if playback.isCasting {
+                // Tijdens het casten: de afstandsbediening (of "klaar om te casten").
+                CastControllerView(onClose: { dismiss() })
+            } else if landscape {
                 videoArea.ignoresSafeArea()
             } else {
                 VStack(spacing: 0) {
@@ -45,7 +48,9 @@ struct PlayerView: View {
             // hij in beeld-in-beeld verder speelt; een cast-sessie loopt door.
             if !PictureInPictureState.shared.isActive { playback.stopLocal() }
         }
-        .onChange(of: playback.request == nil) { _, ended in
+        // Niets meer om af te spelen: sluiten, behalve als de tv verbonden is;
+        // dan blijft het scherm als "klaar om te casten".
+        .onChange(of: playback.request == nil && !playback.isCasting) { _, ended in
             if ended { dismiss() }
         }
     }
@@ -65,14 +70,10 @@ struct PlayerView: View {
     @ViewBuilder
     private var videoArea: some View {
         let playback = model.playback
-        if playback.isCasting {
-            CastingArtwork()
-        } else {
-            ZStack {
-                VideoPlayerController(player: playback.player) { model.showPlayer = true }
-                if playback.isLoading && playback.player.currentItem == nil {
-                    ProgressView().controlSize(.large).tint(.white)
-                }
+        ZStack {
+            VideoPlayerController(player: playback.player) { model.showPlayer = true }
+            if playback.isLoading && playback.player.currentItem == nil {
+                ProgressView().controlSize(.large).tint(.white)
             }
         }
     }
@@ -94,87 +95,10 @@ struct PlayerView: View {
                 Label("Speelt af via AirPlay", systemImage: "airplayvideo")
                     .font(.footnote).foregroundStyle(Color.family7Secondary).padding(.top, 4)
             }
-            if playback.isCasting {
-                CastRemote().padding(.top, 16)
-            }
+
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-    }
-}
-
-/// Tijdens het casten: de omslag en waar het speelt.
-private struct CastingArtwork: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        let playback = model.playback
-        ZStack {
-            RemoteImage(url: playback.artworkURL)
-            Color.black.opacity(0.6)
-            VStack(spacing: 10) {
-                Image(systemName: "tv.and.mediabox").font(.system(size: 40)).foregroundStyle(Color.family7Red)
-                Text("Speelt af op \(playback.castDeviceName ?? "uw tv")").font(.subheadline)
-                if playback.isLoading { ProgressView().tint(.white) }
-            }
-        }
-    }
-}
-
-/// De afstandsbediening voor de Chromecast.
-private struct CastRemote: View {
-    @Environment(AppModel.self) private var model
-    @State private var scrubbing: Double?
-
-    var body: some View {
-        let playback = model.playback
-        VStack(spacing: 16) {
-            if !playback.isLive && playback.castDuration > 0 {
-                VStack(spacing: 4) {
-                    Slider(value: Binding(get: { scrubbing ?? playback.castPosition },
-                                          set: { scrubbing = $0 }),
-                           in: 0...playback.castDuration) { editing in
-                        if !editing, let target = scrubbing {
-                            playback.seek(to: target)
-                            scrubbing = nil
-                        }
-                    }
-                    HStack {
-                        Text(timeText(scrubbing ?? playback.castPosition))
-                        Spacer()
-                        Text(timeText(playback.castDuration))
-                    }
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(Color.family7Secondary)
-                }
-            }
-            HStack(spacing: 40) {
-                if !playback.isLive {
-                    Button { playback.skip(by: -10) } label: { Image(systemName: "gobackward.10") }
-                        .accessibilityLabel("10 seconden terug")
-                }
-                Button { playback.togglePlayPause() } label: {
-                    Image(systemName: playback.isPlaying ? "pause.circle.fill" : "play.circle.fill").font(.system(size: 56))
-                }
-                .accessibilityLabel(playback.isPlaying ? "Pauzeren" : "Afspelen")
-                if !playback.isLive {
-                    Button { playback.skip(by: 30) } label: { Image(systemName: "goforward.30") }
-                        .accessibilityLabel("30 seconden vooruit")
-                }
-            }
-            .font(.title)
-            .foregroundStyle(.white)
-            Button("Op deze telefoon verder kijken", systemImage: "iphone") { playback.stopCasting() }
-                .buttonStyle(.bordered)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func timeText(_ seconds: Double) -> String {
-        let total = Int(seconds.isFinite ? seconds : 0)
-        return total >= 3600
-            ? String(format: "%d:%02d:%02d", total / 3600, total / 60 % 60, total % 60)
-            : String(format: "%d:%02d", total / 60, total % 60)
     }
 }
 

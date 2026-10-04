@@ -18,6 +18,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.session.MediaSession
+import com.google.android.gms.cast.Cast
+import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
@@ -65,7 +67,13 @@ data class PlaybackState(
      */
     val castAvailable: Boolean = false,
     val isCasting: Boolean = false,
-    val castDeviceName: String? = null
+    val castDeviceName: String? = null,
+    /** Volume van de tv (0..1) en of hij gedempt is, tijdens het casten. */
+    val castVolume: Float = 0.5f,
+    val castMuted: Boolean = false,
+    /** Of er een vorige of volgende aflevering is in dit programma. */
+    val hasPrevious: Boolean = false,
+    val hasNext: Boolean = false
 )
 
 /**
@@ -132,9 +140,12 @@ class PlaybackManager(
 
     fun play(request: PlayRequest) {
         recoveryAttempts = 0
+        val (previous, next) = neighbours(request)
         _state.update {
             it.copy(
                 request = request,
+                hasPrevious = previous != null,
+                hasNext = next != null,
                 title = initialTitle(request),
                 subtitle = initialSubtitle(request),
                 artworkUrl = initialArtwork(request),
@@ -177,6 +188,76 @@ class PlaybackManager(
     /** Beëindigt het casten; de weergave gaat (gepauzeerd) verder op de telefoon. */
     fun stopCasting() {
         castContext?.sessionManager?.endCurrentSession(true)
+    }
+
+    // ----------------------------------------------------- bediening
+
+    fun seekTo(positionMs: Long) {
+        _player.value?.seekTo(positionMs.coerceAtLeast(0))
+    }
+
+    fun skip(deltaMs: Long) {
+        val player = _player.value ?: return
+        val target = (player.currentPosition + deltaMs).coerceAtLeast(0)
+        val duration = player.duration
+        player.seekTo(if (duration > 0) target.coerceAtMost(duration - 1_000) else target)
+    }
+
+    /**
+     * Terug naar de live-rand. Op de tv via de Cast-opdracht "zoek naar
+     * oneindig" (de standaard voor live-streams), op de telefoon via de speler.
+     */
+    fun goLive() {
+        val client = castContext?.sessionManager?.currentCastSession?.remoteMediaClient
+        if (_state.value.isCasting && client != null) {
+            client.seek(MediaSeekOptions.Builder().setIsSeekToInfinite(true).build())
+        } else {
+            _player.value?.seekToDefaultPosition()
+        }
+    }
+
+    /** Volume van de tv, van 0 tot 1. */
+    fun setCastVolume(volume: Float) {
+        val session = castContext?.sessionManager?.currentCastSession ?: return
+        runCatching { session.volume = volume.coerceIn(0f, 1f).toDouble() }
+        _state.update { it.copy(castVolume = volume.coerceIn(0f, 1f), castMuted = false) }
+    }
+
+    /** Een stapje harder of zachter, voor de volumeknoppen van de telefoon. */
+    fun adjustCastVolume(up: Boolean): Boolean {
+        if (!_state.value.isCasting) return false
+        setCastVolume(_state.value.castVolume + if (up) VOLUME_STEP else -VOLUME_STEP)
+        return true
+    }
+
+    fun toggleCastMute() {
+        val session = castContext?.sessionManager?.currentCastSession ?: return
+        val muted = !_state.value.castMuted
+        runCatching { session.isMute = muted }
+        _state.update { it.copy(castMuted = muted) }
+    }
+
+    fun playNext() {
+        neighbours(_state.value.request ?: return).second?.let(::play)
+    }
+
+    fun playPrevious() {
+        neighbours(_state.value.request ?: return).first?.let(::play)
+    }
+
+    /**
+     * De vorige en volgende aflevering, in kijkvolgorde: binnen het seizoen op
+     * nummer, en aan het eind door naar het volgende seizoen.
+     */
+    private fun neighbours(request: PlayRequest): Pair<PlayRequest?, PlayRequest?> {
+        if (request !is PlayRequest.Episode) return null to null
+        val ordered = request.program.seasons
+            .sortedBy { it.seasonNumber.toIntOrNull() ?: Int.MAX_VALUE }
+            .flatMap { it.episodes }
+        val index = ordered.indexOfFirst { it.videoSlug == request.episode.videoSlug }
+        if (index < 0) return null to null
+        fun at(i: Int) = ordered.getOrNull(i)?.let { PlayRequest.Episode(it, request.program) }
+        return at(index - 1) to at(index + 1)
     }
 
     private fun load(request: PlayRequest, forceFresh: Boolean, startPositionMs: Long) {
@@ -505,7 +586,23 @@ class PlaybackManager(
 
         private fun onConnected(session: CastSession) {
             watchRemote(session)
+            session.removeCastListener(volumeListener)
+            session.addCastListener(volumeListener)
+            readVolume(session)
             _state.update { it.copy(castDeviceName = session.castDevice?.friendlyName) }
+        }
+    }
+
+    /** Volume van de tv bijhouden, ook als het op de tv zelf verandert. */
+    private val volumeListener = object : Cast.Listener() {
+        override fun onVolumeChanged() {
+            castContext?.sessionManager?.currentCastSession?.let(::readVolume)
+        }
+    }
+
+    private fun readVolume(session: CastSession) {
+        runCatching {
+            _state.update { it.copy(castVolume = session.volume.toFloat(), castMuted = session.isMute) }
         }
     }
 
@@ -534,5 +631,6 @@ class PlaybackManager(
         private const val RECOVERY_BACKOFF_MS = 1_000L
         private const val RESOLVE_RETRY_DELAY_MS = 1_500L
         private const val SEGMENT_RETRIES = 6
+        private const val VOLUME_STEP = 0.05f
     }
 }

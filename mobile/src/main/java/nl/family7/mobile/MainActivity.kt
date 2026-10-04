@@ -131,6 +131,22 @@ class MainActivity : AppCompatActivity() {
         return builder.build()
     }
 
+    /**
+     * Tijdens het casten regelen de volumeknoppen van de telefoon het volume
+     * van de tv, zoals gebruikelijk bij Chromecast-apps.
+     */
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        val volumeKey = event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ||
+            event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN
+        if (volumeKey && app.playback.state.value.isCasting) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                app.playback.adjustCastVolume(up = event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP)
+            }
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         if (pipEligible && Build.VERSION.SDK_INT in Build.VERSION_CODES.O until Build.VERSION_CODES.S) {
@@ -206,6 +222,7 @@ private fun MainNavigation(
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
     val playback by app.playback.state.collectAsStateWithLifecycle()
+    val castPlayer by app.playback.player.collectAsStateWithLifecycle()
     val myList by app.myList.items.collectAsStateWithLifecycle()
     val onPlayer = route == Routes.PLAYER
 
@@ -219,10 +236,13 @@ private fun MainNavigation(
         bottomBar = {
             if (!onPlayer) {
                 Column {
-                    if (playback.isCasting && playback.request != null) {
+                    // Tijdens het casten altijd de mini-balk, ook als er nog niets speelt.
+                    if (playback.isCasting) {
                         MiniCastBar(
                             state = playback,
+                            player = castPlayer,
                             onTogglePlay = app.playback::togglePlayPause,
+                            onStop = app.playback::stopCasting,
                             onOpen = { nav.navigate(Routes.PLAYER) { launchSingleTop = true } }
                         )
                     }

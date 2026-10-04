@@ -46,6 +46,12 @@ final class PlaybackManager: NSObject {
     /// Positie en duur tijdens het casten, voor de afstandsbediening.
     private(set) var castPosition: TimeInterval = 0
     private(set) var castDuration: TimeInterval = 0
+    /// Volume van de tv (0...1) en of hij gedempt is.
+    private(set) var castVolume: Float = 0.5
+    private(set) var castMuted = false
+    /// Of er een vorige of volgende aflevering is in dit programma.
+    private(set) var hasPrevious = false
+    private(set) var hasNext = false
 
     /// De lokale speler; AVPlayerViewController toont hem en doet AirPlay en beeld-in-beeld.
     let player = AVPlayer()
@@ -87,6 +93,9 @@ final class PlaybackManager: NSObject {
     func play(_ request: PlayRequest) {
         recoveryAttempts = 0
         self.request = request
+        let (previous, next) = neighbours(request)
+        hasPrevious = previous != nil
+        hasNext = next != nil
         error = nil
         isLoading = true
         artworkData = nil
@@ -151,6 +160,54 @@ final class PlaybackManager: NSObject {
     /// Stopt met casten; de weergave gaat gepauzeerd verder op de telefoon.
     func stopCasting() {
         GCKCastContext.sharedInstance().sessionManager.endSessionAndStopCasting(true)
+    }
+
+    // MARK: - bediening
+
+    /// Terug naar de live-rand: op de tv via "zoek naar oneindig", lokaal via de speler.
+    func goLive() {
+        if isCasting, let client = remoteClient {
+            let options = GCKMediaSeekOptions()
+            options.seekToInfinite = true
+            client.seek(with: options)
+        } else if let range = player.currentItem?.seekableTimeRanges.last?.timeRangeValue {
+            player.seek(to: range.end)
+        }
+    }
+
+    func setCastVolume(_ volume: Float) {
+        let clamped = min(max(volume, 0), 1)
+        GCKCastContext.sharedInstance().sessionManager.currentCastSession?.setDeviceVolume(clamped)
+        castVolume = clamped
+        castMuted = false
+    }
+
+    func toggleCastMute() {
+        castMuted.toggle()
+        GCKCastContext.sharedInstance().sessionManager.currentCastSession?.setDeviceMuted(castMuted)
+    }
+
+    func playNext() {
+        guard let request, let next = neighbours(request).next else { return }
+        play(next)
+    }
+
+    func playPrevious() {
+        guard let request, let previous = neighbours(request).previous else { return }
+        play(previous)
+    }
+
+    /// Vorige en volgende aflevering in kijkvolgorde: binnen het seizoen op
+    /// nummer, en aan het eind door naar het volgende seizoen.
+    private func neighbours(_ request: PlayRequest) -> (previous: PlayRequest?, next: PlayRequest?) {
+        guard case let .episode(episode, program) = request else { return (nil, nil) }
+        let ordered = program.seasons
+            .sorted { (Int($0.seasonNumber) ?? .max) < (Int($1.seasonNumber) ?? .max) }
+            .flatMap(\.episodes)
+        guard let index = ordered.firstIndex(where: { $0.videoSlug == episode.videoSlug }) else { return (nil, nil) }
+        let previous = index > 0 ? PlayRequest.episode(ordered[index - 1], program) : nil
+        let next = index + 1 < ordered.count ? PlayRequest.episode(ordered[index + 1], program) : nil
+        return (previous, next)
     }
 
     // MARK: - laden
@@ -419,6 +476,8 @@ final class PlaybackManager: NSObject {
     private func attach(to session: GCKCastSession) {
         session.remoteMediaClient?.add(self)
         castDeviceName = session.device.friendlyName
+        castVolume = session.currentDeviceVolume
+        castMuted = session.currentDeviceMuted
         isCasting = true
         startCastTimer()
     }
@@ -500,6 +559,15 @@ extension PlaybackManager: GCKSessionManagerListener, GCKRemoteMediaClientListen
         MainActor.assumeIsolated {
             isCasting = false
             castDeviceName = nil
+        }
+    }
+
+    /// Volume van de tv bijhouden, ook als het op de tv zelf verandert.
+    nonisolated func sessionManager(_ sessionManager: GCKSessionManager, castSession session: GCKCastSession,
+                                    didReceiveDeviceVolume volume: Float, muted: Bool) {
+        MainActor.assumeIsolated {
+            castVolume = volume
+            castMuted = muted
         }
     }
 

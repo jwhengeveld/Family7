@@ -108,7 +108,8 @@ private struct MiniCastBarModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content.safeAreaInset(edge: .bottom, spacing: 0) {
-            if model.playback.isCasting, model.playback.request != nil {
+            // Tijdens het casten altijd, ook als er nog niets speelt.
+            if model.playback.isCasting {
                 MiniCastBar()
             }
         }
@@ -120,27 +121,43 @@ struct MiniCastBar: View {
 
     var body: some View {
         let playback = model.playback
-        HStack(spacing: 12) {
-            RemoteImage(url: playback.artworkURL)
-                .frame(width: 64, height: 36)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(playback.title).font(.subheadline).lineLimit(1)
-                Label(playback.castDeviceName ?? "Casten", systemImage: "tv")
-                    .font(.caption)
-                    .foregroundStyle(Color.family7Secondary)
-                    .lineLimit(1)
+        let playing = playback.request != nil
+        VStack(spacing: 0) {
+            if playing && !playback.isLive {
+                ProgressView(value: playback.castDuration > 0 ? min(playback.castPosition / playback.castDuration, 1) : 0)
+                    .tint(.family7Red)
+                    .scaleEffect(x: 1, y: 0.6)
             }
-            Spacer()
-            Button {
-                playback.togglePlayPause()
-            } label: {
-                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill").font(.title3)
+            HStack(spacing: 12) {
+                if playing {
+                    RemoteImage(url: playback.artworkURL)
+                        .frame(width: 64, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                } else {
+                    Image("Family7Mark").resizable().scaledToFit().frame(width: 40, height: 36)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(playing ? playback.title : "Klaar om te casten").font(.subheadline).lineLimit(1)
+                    Label(playback.castDeviceName ?? "Chromecast", systemImage: "tv")
+                        .font(.caption)
+                        .foregroundStyle(Color.family7Secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                if playing {
+                    Button { playback.togglePlayPause() } label: {
+                        Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill").font(.title3)
+                    }
+                    .accessibilityLabel(playback.isPlaying ? "Pauzeren" : "Afspelen")
+                }
+                Button { playback.stopCasting() } label: {
+                    Image(systemName: "xmark").font(.subheadline.weight(.semibold)).foregroundStyle(Color.family7Secondary)
+                }
+                .accessibilityLabel("Stoppen met casten")
             }
-            .accessibilityLabel(playback.isPlaying ? "Pauzeren" : "Afspelen")
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
         .background(.ultraThinMaterial)
         .contentShape(Rectangle())
         .onTapGesture { model.showPlayer = true }
