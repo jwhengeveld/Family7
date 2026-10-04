@@ -150,6 +150,36 @@ on-demandstreams werken precies hetzelfde.
 - **Snel openen**: met een bewaarde sessie opent de telefoonapp direct het
   startscherm en laat Family7 de sessie op de achtergrond bevestigen.
 
+### De site is de bron van waarheid
+
+- **Alleen family7.nl**: de apps hebben geen andere bron nodig: geen eigen
+  server, geen configuratie op afstand en geen GitHub. Alles wat ze tonen komt
+  bij elk bezoek van de site; alle caching gebeurt lokaal op het toestel en dient
+  alleen om meteen iets te tonen terwijl de verse versie binnenkomt.
+- **Altijd de nieuwste video's**: programmapagina's, seizoenen, overzichten en
+  Mijn lijst worden bij elk bezoek vers opgehaald (ook voorbij de HTTP-cache);
+  het startscherm ververst bij openen, elke 10 minuten en bij vegen.
+- **Alle seizoenen**: de programmapagina van de site toont één seizoen; de apps
+  halen de andere op via hetzelfde eindpunt als de site
+  (`/get-videos-by-season/{node}/{seizoen}`), parallel en begrensd.
+- **Bestand tegen een verbouwing van de site** (`Family7Parser`): elk gegeven
+  heeft een route via de huidige opmaak en vangnetten die niet op class-namen
+  leunen (links naar `/programmas/` en `/video/`, afbeeldingen uit `src`,
+  `data-src`, `srcset`, `<picture>` of een achtergrondstijl, het node-id uit
+  `drupalSettings`, het speleradres uit de ruwe tekst). Getest op echte pagina's
+  én op bewust verbouwde versies.
+- **Een hapering is geen waarheid**: levert de site eenmalig een verdacht magere
+  lijst, dan blijft de vorige staan; geeft de site bij de volgende keer
+  hetzelfde, dan volgt de app de site.
+- **Verlopen sessie**: een anonieme pagina of de inlogpagina wordt herkend
+  (niet gelezen als lege catalogus); de app laat Family7 de sessie bevestigen
+  en vraagt zo nodig opnieuw in te loggen.
+- **Slimme verzoeken**: gelijktijdige verzoeken voor dezelfde pagina delen één
+  download, en stream-adressen worden onthouden zo lang het token erin geldig is.
+- **Sitewachter (optioneel, voor ontwikkelaars)**: `.github/workflows/site-watch.yml`
+  test wekelijks de echte site en maakt een issue als de opmaak verandert. De
+  apps zelf hebben die niet nodig.
+
 ### Projectindeling
 
 | Module | Inhoud |
@@ -157,6 +187,8 @@ on-demandstreams werken precies hetzelfde.
 | `core/` | Gedeelde datalaag (`nl.family7.core.data`): HTTP-client, sessie, catalogus, Mijn lijst, live, Streampartner-uitpakker, caches, netwerkmonitor. Met unit-tests. |
 | `app/` | De Android TV-app (`nl.family7.tv`), Compose for TV. |
 | `mobile/` | De telefoonapp (`nl.family7.mobile`), Compose Material 3 + Google Cast. |
+| `brand/` | Logo, embleem, app-iconen, TV-banner en het geanimeerde splashscherm (gedeeld). |
+| `art/` | Brongrafiek van het logo en de scripts die er alle afbeeldingen van maken. |
 
 ---
 
