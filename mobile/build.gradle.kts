@@ -34,8 +34,8 @@ android {
         applicationId = "nl.family7.mobile"
         minSdk = 24
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.3.5"
+        versionCode = 7
+        versionName = "1.3.6"
 
         buildConfigField("String", "CAST_RECEIVER_ID", "\"$castReceiverId\"")
     }

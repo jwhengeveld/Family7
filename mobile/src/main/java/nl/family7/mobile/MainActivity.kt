@@ -190,16 +190,14 @@ private data class Tab(
     val route: String,
     val label: String,
     val icon: ImageVector,
-    val railOnly: Boolean = false,
-    /** Korter woord voor de smalle onderbalk van een telefoon. */
-    val shortLabel: String = label
+    val railOnly: Boolean = false
 )
 
 private val tabs = listOf(
     Tab(Routes.HOME, "Start", Icons.Filled.Home),
     Tab("live", "Live", Icons.Filled.LiveTv),
     // Bladeren, zoals "On Demand" op tv.
-    Tab(Routes.BROWSE, "Programma's", Icons.Filled.VideoLibrary, shortLabel = "Bladeren"),
+    Tab(Routes.BROWSE, "Programma's", Icons.Filled.VideoLibrary),
     Tab(Routes.KIDS, "Kids", Icons.Filled.ChildCare, railOnly = true),
     Tab(Routes.SEARCH, "Zoeken", Icons.Filled.Search),
     Tab(Routes.MY_LIST, "Mijn lijst", Icons.AutoMirrored.Filled.List)
@@ -287,7 +285,8 @@ private fun MainNavigation(
                                         else nav.navigateToTab(tab.route)
                                     },
                                     icon = { Icon(tab.icon, contentDescription = null) },
-                                    label = { Text(tab.shortLabel, maxLines = 1, softWrap = false) }
+                                    // Iets kleiner dan standaard, zodat "Programma's" op een smalle telefoon op één regel past.
+                                    label = { Text(tab.label, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelSmall) }
                                 )
                             }
                         }
