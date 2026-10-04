@@ -2,7 +2,7 @@
 
 Een native iOS-app voor [Family7](https://www.family7.nl/) in **SwiftUI**, met
 **AirPlay** en **Google Cast**. De iOS-tegenhanger van de Android TV- en
-telefoonapp ([Family7-Android-TV](https://github.com/jwhengeveld/Family7-Android-TV)):
+telefoonapp in deze repository:
 dezelfde aanmelding, catalogus, Mijn lijst en live- en on-demandstreams, en
 dezelfde manier van slim laden.
 

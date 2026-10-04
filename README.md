@@ -1,10 +1,20 @@
-# Family7 Android TV App 📺✝️
+# Family7 apps: Android TV, Android en iOS 📺📱✝️
 
 [![Android CI](https://github.com/jwhengeveld/Family7-Android-TV/actions/workflows/android-build.yml/badge.svg)](https://github.com/jwhengeveld/Family7-Android-TV/actions/workflows/android-build.yml)
+[![iOS](https://github.com/jwhengeveld/Family7-Android-TV/actions/workflows/ios-build.yml/badge.svg)](https://github.com/jwhengeveld/Family7-Android-TV/actions/workflows/ios-build.yml)
 [![Release](https://img.shields.io/github/v/release/jwhengeveld/Family7-Android-TV?color=orange&label=Latest%20APK)](https://github.com/jwhengeveld/Family7-Android-TV/releases/latest)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-purple.svg)](https://kotlinlang.org)
-[![Compose TV](https://img.shields.io/badge/Jetpack%20Compose-TV%201.0.0-blue.svg)](https://developer.android.com/jetpack/compose/tv)
-[![Media3](https://img.shields.io/badge/AndroidX-Media3%20ExoPlayer-green.svg)](https://developer.android.com/media/media3)
+
+Drie onofficiële, onafhankelijke apps voor [Family7](https://www.family7.nl/) in één
+repository:
+
+| App | Map | Platform | Release |
+|---|---|---|---|
+| **Family7 voor Android TV** | `app/` | Android TV, Google TV | `family7-androidtv-v….apk` / `.aab` |
+| **Family7 voor Android** | `mobile/` | Telefoons en tablets, met Chromecast | `family7-mobile-v….apk` / `.aab` |
+| **Family7 voor iPhone en iPad** | `ios/` | iOS 17+, met AirPlay en Chromecast | via Xcode (zie `ios/README.md`) |
+
+De Android-apps delen hun datalaag (`core/`) en merk (`brand/`); de iOS-app is
+daar een Swift-port van, met dezelfde tests op dezelfde pagina's van family7.nl.
 
 Een moderne, native **Android TV / Google TV** applicatie voor [Family7](https://www.family7.nl/), ontwikkeld in **Kotlin** met **Jetpack Compose for TV**, **Material 3**, en **AndroidX Media3 (ExoPlayer)**.
 
@@ -189,6 +199,7 @@ on-demandstreams werken precies hetzelfde.
 | `mobile/` | De telefoonapp (`nl.family7.mobile`), Compose Material 3 + Google Cast. |
 | `brand/` | Logo, embleem, app-iconen, TV-banner en het geanimeerde splashscherm (gedeeld). |
 | `art/` | Brongrafiek van het logo en de scripts die er alle afbeeldingen van maken. |
+| `ios/` | De iOS-app (SwiftUI, AirPlay, Google Cast); zie `ios/README.md`. |
 
 ---
 

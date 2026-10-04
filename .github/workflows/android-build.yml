@@ -140,7 +140,7 @@ jobs:
             gh release upload "$GITHUB_REF_NAME" $FILES --clobber
           else
             gh release create "$GITHUB_REF_NAME" $FILES \
-              --title "Family7 Android TV + telefoon $GITHUB_REF_NAME" \
+              --title "Family7 $GITHUB_REF_NAME" \
               --generate-notes
           fi
 

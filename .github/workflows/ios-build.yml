@@ -1,0 +1,29 @@
+name: iOS / Build & Test
+
+# Bouwt en test de iOS-app (ios/) in de simulator. Geen ondertekening: een
+# installeerbare iOS-versie gaat via Xcode met een Apple Developer-account
+# (TestFlight of de App Store), niet via een release-bestand.
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'ios/**', 'art/**', '.github/workflows/ios-build.yml' ]
+  pull_request:
+    paths: [ 'ios/**' ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Google Cast SDK ophalen
+        run: ./scripts/fetch-cast-sdk.sh
+      - name: Bouwen en testen
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k,v in sorted(d.items(), reverse=True) if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
+          xcodebuild -project Family7.xcodeproj -scheme Family7 \
+            -destination "id=$DEVICE" \
+            CODE_SIGNING_ALLOWED=NO test

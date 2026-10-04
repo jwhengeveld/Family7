@@ -30,7 +30,7 @@ swift tools/text_to_path.swift Nunito.ttf 820 Family > family_text.txt
 python3 tools/build_logo_svg.py
 
 # 2. Android-drawables (TV en telefoon) en iOS-afbeeldingen uit deze SVG's
-python3 tools/build_brand_assets.py --ios ../../iOS/Family7iOS
+python3 tools/build_brand_assets.py   # schrijft naar brand/ (Android) en ios/
 ```
 
 Let op: renderers verschillen. De CoreSVG-renderer van Apple verschuift kleuren

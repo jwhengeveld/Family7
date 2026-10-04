@@ -5,7 +5,8 @@ Android (TV-app en telefoonapp, via de module :brand): VectorDrawables met echte
 iOS (met --ios <pad naar Family7iOS>): PNG's, gerenderd met headless Chrome,
 omdat de CoreSVG-renderer van iOS kleuren binnen verlopen verschuift.
 
-    python3 art/tools/build_brand_assets.py [--ios ../iOS/Family7iOS]
+    python3 art/tools/build_brand_assets.py            # Android + iOS (ios/)
+    python3 art/tools/build_brand_assets.py --no-ios   # alleen Android
 """
 import argparse
 import json
@@ -288,12 +289,13 @@ def build_ios(ios_root, mark, logo, text):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--ios", help="pad naar de Family7iOS-repository")
+    parser.add_argument("--ios", default=str(ROOT / "ios"), help="pad naar de iOS-app (standaard ios/)")
+    parser.add_argument("--no-ios", action="store_true", help="alleen de Android-afbeeldingen maken")
     args = parser.parse_args()
 
     mark, logo, text = Art("family7_mark.svg"), Art("family7_logo.svg"), Art("family7_text.svg")
     build_android(mark, logo, text)
-    if args.ios:
+    if not args.no_ios and Path(args.ios).exists():
         build_ios(args.ios, mark, logo, text)
 
 
