@@ -1,17 +1,17 @@
 {
   "images": [
     {
-      "filename": "Family7Mark@1x.png",
+      "filename": "Family7Text@1x.png",
       "idiom": "universal",
       "scale": "1x"
     },
     {
-      "filename": "Family7Mark@2x.png",
+      "filename": "Family7Text@2x.png",
       "idiom": "universal",
       "scale": "2x"
     },
     {
-      "filename": "Family7Mark@3x.png",
+      "filename": "Family7Text@3x.png",
       "idiom": "universal",
       "scale": "3x"
     }

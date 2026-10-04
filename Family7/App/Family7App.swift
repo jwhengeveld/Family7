@@ -29,9 +29,11 @@ enum GridDestination: Hashable {
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
+    @State private var splashDone = false
 
     var body: some View {
         @Bindable var model = model
+        ZStack {
         Group {
             switch model.authState {
             case .checking:
@@ -42,6 +44,12 @@ struct RootView: View {
             case .loggedIn:
                 MainTabs()
             }
+        }
+        // De onthulling ligt over de app heen; die laadt eronder al door.
+        if !splashDone {
+            SplashView(ready: model.authState != .checking) { splashDone = true }
+                .zIndex(1)
+        }
         }
         .fullScreenCover(isPresented: $model.showPlayer) {
             PlayerView()

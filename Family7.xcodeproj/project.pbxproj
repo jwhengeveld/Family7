@@ -15,6 +15,7 @@
 		2972446BE4514A3986A8BB37 /* CastSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9202E8C2411D1AD9B5ACB4A9 /* CastSetup.swift */; };
 		2C7DD1ED65EAABB90FCF1B19 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 437C27FFE3B56E0BEB9AE88D /* SwiftSoup */; };
 		2DF560DD8C1B91F868DE8179 /* PlaybackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B1B9F89D7F3DD93E30A4610 /* PlaybackManager.swift */; };
+		2EFF382DC7FF0BB78A5FAEB9 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DE185A54C40813E5AB9652 /* SplashView.swift */; };
 		41969652A20F6F653075B274 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD4E931045D676193117E51 /* Components.swift */; };
 		47557528802FE070C61F4EE8 /* MaterialDialogs.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 107F6C19ABAA22351506C654 /* MaterialDialogs.bundle */; };
 		4B3110CE252CD021EC8FCD43 /* StreampartnerPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44BB4EDF02430B7C22889239 /* StreampartnerPlayer.swift */; };
@@ -67,6 +68,7 @@
 		44BB4EDF02430B7C22889239 /* StreampartnerPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreampartnerPlayer.swift; sourceTree = "<group>"; };
 		44C634A3557925ED43775459 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		46B3FBC3DAC64F85952D0D97 /* StreampartnerPlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreampartnerPlayerTests.swift; sourceTree = "<group>"; };
+		64DE185A54C40813E5AB9652 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		65F6A5BB507904556D0B6D10 /* LiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveView.swift; sourceTree = "<group>"; };
 		763A8AB7819BB8FC91F2964F /* Family7App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Family7App.swift; sourceTree = "<group>"; };
 		76BEAABC76A8A33571DD13AC /* GoogleCastCoreResources.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = GoogleCastCoreResources.bundle; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 			isa = PBXGroup;
 			children = (
 				EFD4E931045D676193117E51 /* Components.swift */,
+				64DE185A54C40813E5AB9652 /* SplashView.swift */,
 				44C634A3557925ED43775459 /* Theme.swift */,
 			);
 			path = Components;
@@ -401,6 +404,7 @@
 				2297BEBE09C4D3B30981AA66 /* PlayerView.swift in Sources */,
 				70FE8D4729D1A43EAADAF75D /* ProgramView.swift in Sources */,
 				E9E9C5E0F90D0E3C2B188207 /* Repositories.swift in Sources */,
+				2EFF382DC7FF0BB78A5FAEB9 /* SplashView.swift in Sources */,
 				4B3110CE252CD021EC8FCD43 /* StreampartnerPlayer.swift in Sources */,
 				FBF02169AD7A0D40C1233C11 /* Theme.swift in Sources */,
 			);

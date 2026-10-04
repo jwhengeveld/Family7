@@ -35,7 +35,7 @@ final class CachingTests: XCTestCase {
         let rows = [CategoryRow(id: "nieuw", title: "Nieuw toegevoegd", moreURL: "https://x/nieuw",
                                 items: [ProgramItem(id: "/p/a", slug: "a", title: "Één \"titel\"", thumbnailURL: "https://x/a.jpg",
                                                     badge: "Nieuw", nodeId: "42")])]
-        let store = SnapshotStore()
+        let store = SnapshotStore(folder: "family7_catalog_tests")
         store.write(rows, "test-rows")
         XCTAssertEqual(store.read([CategoryRow].self, "test-rows"), rows)
         store.clear()

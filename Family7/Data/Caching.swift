@@ -58,15 +58,18 @@ let backgroundRefreshInterval: TimeInterval = 10 * 60
 /// Bewaart de laatst geladen catalogus op schijf, voor een koude start zonder
 /// laadscherm. Staat in Application Support, buiten de back-up.
 struct SnapshotStore: Sendable {
-    private let directory: URL = {
+    private let directory: URL
+
+    /// `folder` is alleen voor tests anders, zodat die nooit de echte catalogus wissen.
+    init(folder: String = "family7_catalog") {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        var dir = base.appendingPathComponent("family7_catalog", isDirectory: true)
+        var dir = base.appendingPathComponent(folder, isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try? dir.setResourceValues(values)
-        return dir
-    }()
+        directory = dir
+    }
 
     func read<T: Decodable>(_ type: T.Type, _ name: String) -> T? {
         guard let data = try? Data(contentsOf: directory.appendingPathComponent("\(name).json")) else { return nil }
