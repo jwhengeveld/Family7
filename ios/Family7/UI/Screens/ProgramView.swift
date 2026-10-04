@@ -52,18 +52,28 @@ struct ProgramView: View {
 
     private var header: some View {
         let detail = loader?.value
-        return ZStack(alignment: .bottomLeading) {
+        let content = ZStack(alignment: .bottomLeading) {
             RemoteImage(url: detail?.posterURL.nonEmpty ?? preview.thumbnailURL)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
             LinearGradient(stops: [.init(color: .black.opacity(0.4), location: 0), .init(color: .clear, location: 0.35),
                                    .init(color: .family7Background, location: 1)],
                            startPoint: .top, endPoint: .bottom)
             Text(detail?.title ?? preview.title)
-                .font(.title.weight(.bold))
+                .font(sizeClass == .regular ? .largeTitle.weight(.bold) : .title.weight(.bold))
                 .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
         }
-        .aspectRatio(16 / 9, contentMode: .fit)
-        .frame(maxWidth: .infinity, maxHeight: 380)
+        // Op een iPad over de hele breedte, met de titel links bij de rest
+        // van de pagina, zoals op tv; op een iPhone 16:9.
+        return Group {
+            if sizeClass == .regular {
+                content.frame(maxWidth: .infinity).frame(height: 420)
+            } else {
+                content.aspectRatio(16 / 9, contentMode: .fit).frame(maxWidth: .infinity, maxHeight: 380)
+            }
+        }
         .clipped()
     }
 
