@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      AppCompat als basis: de Cast-knop opent zijn apparatenkiezer als
+      dialoogvenster van AppCompat. De rest van het scherm tekent Compose.
+    -->
+    <style name="Theme.Family7Mobile" parent="Theme.AppCompat.NoActionBar">
+        <item name="colorPrimary">@color/family7_red</item>
+        <item name="colorPrimaryDark">@color/family7_blue_dark</item>
+        <item name="colorAccent">@color/family7_red</item>
+        <item name="android:windowBackground">@color/family7_blue_dark</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

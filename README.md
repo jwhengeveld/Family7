@@ -99,6 +99,67 @@ De app biedt volledige ondersteuning voor zowel **Live TV** (Family7 Plus livest
 
 ---
 
+## 📱 Telefoonapp met Chromecast (`mobile/`)
+
+Naast de TV-app bevat dit project een app voor Android-telefoons en -tablets
+(`nl.family7.mobile`). Die deelt de complete datalaag met de TV-app (zie
+*Projectindeling*), dus inloggen, de catalogus, Mijn lijst en de live- en
+on-demandstreams werken precies hetzelfde.
+
+- **Navigatie voor aanraakschermen**: onderbalk met Start, Live, Zoeken en Mijn
+  lijst; Kids, A-Z en de "Alles"-pagina van elke rij vanaf het startscherm.
+- **Kijken op de telefoon**: Media3 met de standaardbediening, schermvullend en
+  liggend, beeld-in-beeld bij het verlaten van de app, pauze als de oortjes
+  eruit gaan, en mediabediening via een `MediaSession`.
+- **Casten naar Chromecast en Google TV**: de Cast-knop verschijnt vanzelf zodra
+  er een ontvanger in het netwerk is. Een lopende aflevering gaat over naar de
+  tv op dezelfde plek; stoppen met casten zet hem gepauzeerd terug op de
+  telefoon. Tijdens het casten blijft een mini-balk onderin staan terwijl u
+  verder bladert, en de Cast-melding en het vergrendelscherm bedienen de tv.
+  Live tv wordt als live-stream aangemeld (geen tijdbalk met eindpunt).
+  - Gebruikt de *Default Media Receiver* van Google. Getest: de HLS-streams van
+    Streampartner (live én on demand) sturen `Access-Control-Allow-Origin: *`
+    en vragen geen cookies of Referer, dus de standaardontvanger kan ze spelen.
+  - Verandert dat ooit, dan kan een eigen ontvanger uit de Cast Developer
+    Console worden ingesteld zonder codewijziging:
+    `./gradlew :mobile:assembleRelease -Pfamily7.castReceiverId=ABCD1234`.
+  - Zonder Google Play-services (bijvoorbeeld Huawei) werkt de app gewoon,
+    alleen zonder Cast-knop.
+
+### Slim en robuust laden (beide apps)
+
+- **Koude start zonder laadscherm**: de laatst geladen catalogus (startpagina,
+  A-Z, kids) staat op schijf in de no-backup-map en vult het scherm meteen; het
+  ophalen bij Family7 gebeurt daarna stil. Uitloggen wist die snapshot.
+- **Stil verversen**: nieuwe inhoud verschijnt zonder spinner. Alleen een
+  handmatige veeg (telefoon) toont een indicator.
+- **Inhoud blijft staan bij een fout**: mislukt verversen, dan blijft de vorige
+  inhoud zichtbaar met een rustige melding; een foutscherm alleen als er
+  niets te tonen is.
+- **Netwerk terug = vanzelf opnieuw**: de telefoonapp luistert naar de
+  verbinding en probeert een mislukte lading of weergave opnieuw zodra er
+  weer internet is, zonder dat u op "opnieuw" hoeft te drukken.
+- **Sneller eerste beeld**: de startpagina en "Nieuw toegevoegd" worden
+  tegelijk opgehaald, zoeken filtert de A-Z-lijst op het toestel, en het
+  stream-adres van de eerste aflevering wordt al opgezocht als de
+  programmapagina opent.
+- **Afspelen herstelt zichzelf**: mislukt een stream, dan haalt de app een vers
+  adres op (het token van Streampartner verloopt) en gaat verder op dezelfde
+  plek, met oplopende pauzes; live tv die achterop raakt springt terug naar
+  de live-rand, en segmenten krijgen meer herkansingen op mobiel internet.
+- **Snel openen**: met een bewaarde sessie opent de telefoonapp direct het
+  startscherm en laat Family7 de sessie op de achtergrond bevestigen.
+
+### Projectindeling
+
+| Module | Inhoud |
+|---|---|
+| `core/` | Gedeelde datalaag (`nl.family7.core.data`): HTTP-client, sessie, catalogus, Mijn lijst, live, Streampartner-uitpakker, caches, netwerkmonitor. Met unit-tests. |
+| `app/` | De Android TV-app (`nl.family7.tv`), Compose for TV. |
+| `mobile/` | De telefoonapp (`nl.family7.mobile`), Compose Material 3 + Google Cast. |
+
+---
+
 ## 🔑 Release bouwen
 
 De release-build wordt ondertekend met een eigen sleutel; de gegevens staan in
@@ -126,8 +187,9 @@ Een tag uitbrengen is genoeg:
 git tag v1.2.0 && git push origin v1.2.0
 ```
 
-De workflow bouwt dan de ondertekende release, controleert de handtekening,
-faalt als de APK debuggable blijkt, en zet de APK bij de release. Pull requests
+De workflow bouwt dan de ondertekende releases van beide apps (TV en telefoon),
+controleert de handtekeningen, faalt als een APK debuggable blijkt, en zet de
+APK's en bundels bij de release (`family7-androidtv-v…` en `family7-mobile-v…`). Pull requests
 van forks krijgen geen secrets en bouwen alleen debug.
 
 > **Bewaar de keystore zelf ergens buiten deze machine.** GitHub Actions secrets
@@ -135,16 +197,17 @@ van forks krijgen geen secrets en bouwen alleen debug.
 > uit te halen. Raakt de lokale keystore kwijt, dan kan geen enkele update meer
 > over een bestaande installatie heen.
 
-De release-build gebruikt R8 met resource shrinking (16,1 MB → 2,7 MB). De
-bewaarregels in `app/proguard-rules.pro` beschermen Jsoup, dat de HTML van
-family7.nl leest.
+De release-build gebruikt R8 met resource shrinking (TV 2,7 MB, telefoon 4,6 MB).
+De bewaarregels in `core/consumer-rules.pro` beschermen Jsoup, dat de HTML van
+family7.nl leest, en gaan vanzelf mee naar beide apps.
 
 ## 🛠️ Architectuur & Tech Stack
 
 | Component | Technologie |
 |---|---|
 | **Taal** | Kotlin 2.1.0 |
-| **UI Framework** | Jetpack Compose for TV / Compose Material 3 |
+| **UI Framework** | Jetpack Compose for TV (TV) / Compose Material 3 (telefoon) |
+| **Casten** | Google Cast SDK 21.5 + Media3 `CastPlayer`, MediaRouter-knop |
 | **Video Playback** | AndroidX Media3 ExoPlayer 1.5.1 (HLS, Adaptive Streaming) |
 | **Networking & HTTP** | OkHttp 4.12.0 met persistente CookieJar |
 | **HTML / Scraping** | Jsoup 1.18.3 & Streampartner Recursive Unpacker |
@@ -167,6 +230,8 @@ family7.nl leest.
    ```bash
    adb shell am start -n nl.family7.tv/.MainActivity
    ```
+4. De telefoonapp gaat net zo, met `family7-mobile-v….apk` en
+   `adb shell am start -n nl.family7.mobile/.MainActivity`.
 
 ---
 
@@ -181,8 +246,9 @@ cd Family7-Android-TV
 # Compileer de debug APK
 ./gradlew assembleDebug
 
-# De APK is te vinden in:
-# app/build/outputs/apk/debug/app-debug.apk
+# De APK's zijn te vinden in:
+# app/build/outputs/apk/debug/app-debug.apk        (TV)
+# mobile/build/outputs/apk/debug/mobile-debug.apk  (telefoon)
 
 # Draai de tests
 ./gradlew testDebugUnitTest

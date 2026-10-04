@@ -116,7 +116,12 @@ fun HomeScreen(
         if (categoryRows.isEmpty() && featuredProgram == null) isLoading = true
         catalogRepo.getOnDemandHome(forceRefresh = reloadKey > 0)
             .onSuccess { applyRows(it); isLoading = false }
-            .onFailure { errorMessage = it.message; isLoading = false }
+            .onFailure {
+                // Staat er al inhoud (uit het geheugen of van schijf), dan blijft
+                // die staan; een foutscherm alleen als er niets te tonen is.
+                if (categoryRows.isEmpty() && featuredProgram == null) errorMessage = it.message
+                isLoading = false
+            }
     }
 
     // Stil verversen zolang Home op de voorgrond staat, zodat nieuwe programma's

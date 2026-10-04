@@ -65,15 +65,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-report
-          path: app/build/reports/tests/
+          path: |
+            app/build/reports/tests/
+            core/build/reports/tests/
+            mobile/build/reports/tests/
           if-no-files-found: ignore
           retention-days: 7
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
 
-      # De APK is voor zijlading op een tv of Portal; de AAB is wat Google Play
-      # accepteert. Beide komen uit dezelfde ondertekende build.
+      # De APK is voor zijlading op een tv, Portal of telefoon; de AAB is wat
+      # Google Play accepteert. Beide komen uit dezelfde ondertekende build, voor
+      # de TV-app (app) en de telefoonapp (mobile).
       - name: Build Signed Release APK and Bundle
         if: ${{ hashFiles('keystore/family7-release.jks') != '' }}
         run: ./gradlew assembleRelease bundleRelease --stacktrace
@@ -82,21 +86,23 @@ jobs:
         if: ${{ hashFiles('keystore/family7-release.jks') != '' }}
         run: |
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
-          APK=app/build/outputs/apk/release/app-release.apk
-          "$APKSIGNER" verify --verbose --print-certs "$APK"
-          # Een release mag nooit debuggable zijn.
           AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -1)
-          if "$AAPT2" dump badging "$APK" | grep -q "application-debuggable"; then
-            echo "::error::De release-APK is debuggable"
-            exit 1
-          fi
-          # En hij mag geen onversleuteld verkeer toestaan.
-          if "$AAPT2" dump xmltree "$APK" --file AndroidManifest.xml | grep -q "usesCleartextTraffic.*0xffffffff"; then
-            echo "::error::De release staat onversleuteld verkeer toe"
-            exit 1
-          fi
-          # De bundel moet er zijn en ondertekend.
-          test -f app/build/outputs/bundle/release/app-release.aab
+          for MODULE in app mobile; do
+            APK=$MODULE/build/outputs/apk/release/$MODULE-release.apk
+            "$APKSIGNER" verify --verbose --print-certs "$APK"
+            # Een release mag nooit debuggable zijn.
+            if "$AAPT2" dump badging "$APK" | grep -q "application-debuggable"; then
+              echo "::error::$APK is debuggable"
+              exit 1
+            fi
+            # En hij mag geen onversleuteld verkeer toestaan.
+            if "$AAPT2" dump xmltree "$APK" --file AndroidManifest.xml | grep -q "usesCleartextTraffic.*0xffffffff"; then
+              echo "::error::$APK staat onversleuteld verkeer toe"
+              exit 1
+            fi
+            # De bundel moet er zijn en ondertekend.
+            test -f $MODULE/build/outputs/bundle/release/$MODULE-release.aab
+          done
 
       - name: Name Release Artifacts
         if: startsWith(github.ref, 'refs/tags/v')
@@ -104,15 +110,20 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           cp app/build/outputs/apk/release/app-release.apk "family7-androidtv-v${VERSION}.apk"
           cp app/build/outputs/bundle/release/app-release.aab "family7-androidtv-v${VERSION}.aab"
+          cp mobile/build/outputs/apk/release/mobile-release.apk "family7-mobile-v${VERSION}.apk"
+          cp mobile/build/outputs/bundle/release/mobile-release.aab "family7-mobile-v${VERSION}.aab"
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: family7-androidtv
+          name: family7-apps
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/release/app-release.apk
             app/build/outputs/bundle/release/app-release.aab
+            mobile/build/outputs/apk/debug/mobile-debug.apk
+            mobile/build/outputs/apk/release/mobile-release.apk
+            mobile/build/outputs/bundle/release/mobile-release.aab
           if-no-files-found: error
           retention-days: 14
 
@@ -123,14 +134,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          APK="family7-androidtv-v${VERSION}.apk"
-          AAB="family7-androidtv-v${VERSION}.aab"
+          FILES="family7-androidtv-v${VERSION}.apk family7-androidtv-v${VERSION}.aab family7-mobile-v${VERSION}.apk family7-mobile-v${VERSION}.aab"
           # Maak de release aan als hij nog niet bestaat; anders alleen de bestanden erbij.
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$APK" "$AAB" --clobber
+            gh release upload "$GITHUB_REF_NAME" $FILES --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "$APK" "$AAB" \
-              --title "Family7 Android TV $GITHUB_REF_NAME" \
+            gh release create "$GITHUB_REF_NAME" $FILES \
+              --title "Family7 Android TV + telefoon $GITHUB_REF_NAME" \
               --generate-notes
           fi
 

@@ -158,6 +158,14 @@ class Family7AuthRepository(appContext: Context) {
         )
     }
 
+    /**
+     * Of er lokaal een sessie bewaard staat, zonder Family7 te vragen. Daarmee
+     * kan een app meteen het startscherm tonen en [checkSession] op de
+     * achtergrond laten bevestigen.
+     */
+    fun hasStoredSession(): Boolean =
+        authPrefs.getBoolean(KEY_IS_LOGGED_IN, false) && cookieJar.hasSessionCookie()
+
     /** Het eigen gebruikersnummer volgens Family7, of null als we niet ingelogd zijn. */
     private fun fetchOwnUid(): String? =
         client.newCall(Request.Builder().url(ACCOUNT_URL).build()).execute().use { response ->

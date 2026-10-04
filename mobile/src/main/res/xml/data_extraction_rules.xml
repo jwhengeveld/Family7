@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Back-up- en overzetregels voor Android 12 en nieuwer. Zie backup_rules.xml
+  voor waarom de aanmeldsessie erbuiten blijft.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="family7_cookies.xml" />
+        <exclude domain="sharedpref" path="family7_auth_prefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="family7_cookies.xml" />
+        <exclude domain="sharedpref" path="family7_auth_prefs.xml" />
+    </device-transfer>
+</data-extraction-rules>

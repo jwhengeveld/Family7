@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Back-upregels voor Android 11 en ouder.
+
+  De aanmeldsessie hoort niet in een back-up: die is aan dit toestel gebonden
+  en versleuteld met een sleutel die het toestel niet verlaat. Meenemen levert
+  op een ander toestel toch niets bruikbaars op, en zou de sessie onnodig
+  buiten de deur brengen.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="family7_cookies.xml" />
+    <exclude domain="sharedpref" path="family7_auth_prefs.xml" />
+</full-backup-content>

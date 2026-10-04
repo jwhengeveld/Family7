@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Merkkleuren uit het Family7 logo -->
+    <color name="family7_red">#E8000F</color>
+    <color name="family7_blue_dark">#031A38</color>
+</resources>
