@@ -1,8 +1,8 @@
 # Family7 apps: Android TV, Android en iOS 📺📱✝️
 
-[![Android CI](https://github.com/jwhengeveld/Family7-Android-TV/actions/workflows/android-build.yml/badge.svg)](https://github.com/jwhengeveld/Family7-Android-TV/actions/workflows/android-build.yml)
-[![iOS](https://github.com/jwhengeveld/Family7-Android-TV/actions/workflows/ios-build.yml/badge.svg)](https://github.com/jwhengeveld/Family7-Android-TV/actions/workflows/ios-build.yml)
-[![Release](https://img.shields.io/github/v/release/jwhengeveld/Family7-Android-TV?color=orange&label=Latest%20APK)](https://github.com/jwhengeveld/Family7-Android-TV/releases/latest)
+[![Android CI](https://github.com/jwhengeveld/Family7/actions/workflows/android-build.yml/badge.svg)](https://github.com/jwhengeveld/Family7/actions/workflows/android-build.yml)
+[![iOS](https://github.com/jwhengeveld/Family7/actions/workflows/ios-build.yml/badge.svg)](https://github.com/jwhengeveld/Family7/actions/workflows/ios-build.yml)
+[![Release](https://img.shields.io/github/v/release/jwhengeveld/Family7?color=orange&label=Latest%20APK)](https://github.com/jwhengeveld/Family7/releases/latest)
 
 Drie onofficiële, onafhankelijke apps voor [Family7](https://www.family7.nl/) in één
 repository:
@@ -263,7 +263,7 @@ family7.nl leest, en gaan vanzelf mee naar beide apps.
 
 ## 🚀 Installatie & Sideloading (APK)
 
-1. Download de nieuwste APK uit de [Releases](https://github.com/jwhengeveld/Family7-Android-TV/releases) sectie (`family7-androidtv-v1.0.0.apk`).
+1. Download de nieuwste APK uit de [Releases](https://github.com/jwhengeveld/Family7/releases) sectie (`family7-androidtv-v1.0.0.apk`).
 2. Installeer op uw Android TV of aangesloten apparaat via ADB:
    ```bash
    adb connect <IP_VAN_UW_TV>:5555
@@ -283,8 +283,8 @@ family7.nl leest, en gaan vanzelf mee naar beide apps.
 Vereisten: **Android Studio Meerkat / Ladybug** of **JDK 17+** en Android SDK 35.
 
 ```bash
-git clone https://github.com/jwhengeveld/Family7-Android-TV.git
-cd Family7-Android-TV
+git clone https://github.com/jwhengeveld/Family7.git
+cd Family7
 
 # Compileer de debug APK
 ./gradlew assembleDebug
