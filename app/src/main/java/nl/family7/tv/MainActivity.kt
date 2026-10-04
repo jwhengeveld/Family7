@@ -1,6 +1,9 @@
 package nl.family7.tv
 
 import android.os.Bundle
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.runtime.saveable.rememberSaveable
+import nl.family7.brand.Family7Splash
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -70,6 +73,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var myListRepo: Family7MyListRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         authRepo = Family7AuthRepository(this)
@@ -103,6 +107,8 @@ fun Family7TVApp(
     myListRepo: Family7MyListRepository
 ) {
     var screenState by remember { mutableStateOf<ScreenState>(ScreenState.Splash) }
+    // Het geanimeerde splashscherm ligt over de app heen; die laadt eronder al door.
+    var splashDone by rememberSaveable { mutableStateOf(false) }
     var currentSession by remember { mutableStateOf<UserSession?>(null) }
     val myList by myListRepo.items.collectAsState()
     val scope = rememberCoroutineScope()
@@ -126,8 +132,9 @@ fun Family7TVApp(
         scope.launch { myListRepo.setInList(detail.nodeId, add) }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     when (val state = screenState) {
-        ScreenState.Splash -> SplashScreen()
+        ScreenState.Splash -> Box(modifier = Modifier.fillMaxSize().background(Family7BlueDark))
         ScreenState.Login -> {
             LoginScreen(
                 authRepo = authRepo,
@@ -254,6 +261,13 @@ fun Family7TVApp(
             )
         }
     }
+    if (!splashDone) {
+        Family7Splash(
+            ready = screenState != ScreenState.Splash,
+            onFinished = { splashDone = true }
+        )
+    }
+    }
 }
 
 @Composable
@@ -293,33 +307,4 @@ private fun KidsScreen(
         onRetry = { reloadKey++ },
         onBack = onBack
     )
-}
-
-@Composable
-private fun SplashScreen() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(Family7Blue, Family7BlueDark),
-                    radius = 1400f
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Family7Logo(height = 76.dp)
-            CircularProgressIndicator(
-                color = Family7Red,
-                modifier = Modifier
-                    .padding(top = 32.dp)
-                    .width(34.dp)
-                    .height(34.dp)
-            )
-        }
-    }
 }

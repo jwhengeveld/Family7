@@ -51,7 +51,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import nl.family7.core.data.ProgramItem
-import nl.family7.mobile.R
+import nl.family7.brand.R
 import nl.family7.mobile.ui.theme.DarkSurfaceVariant
 import nl.family7.mobile.ui.theme.Family7Red
 import nl.family7.mobile.ui.theme.TextSecondary

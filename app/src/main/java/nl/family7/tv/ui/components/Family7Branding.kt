@@ -10,7 +10,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import nl.family7.tv.R
+import nl.family7.brand.R
 
 /**
  * Het volledige Family7 woordmerk ("Family7"), als vector.

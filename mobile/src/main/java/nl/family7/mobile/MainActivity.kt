@@ -8,6 +8,9 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Rational
 import androidx.activity.SystemBarStyle
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.runtime.saveable.rememberSaveable
+import nl.family7.brand.Family7Splash
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -86,6 +89,7 @@ class MainActivity : AppCompatActivity() {
     private var pipEligible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         // De app is altijd donker; lichte iconen in de systeembalken, ook als
         // het toestel zelf op een licht thema staat.
         enableEdgeToEdge(
@@ -171,15 +175,22 @@ private fun Family7MobileRoot(
 ) {
     val appViewModel: AppViewModel = viewModel { AppViewModel(app) }
     val auth by appViewModel.auth.collectAsStateWithLifecycle()
+    // Het geanimeerde splashscherm ligt over de app heen; die laadt eronder al door.
+    var splashDone by rememberSaveable { mutableStateOf(false) }
 
+    Box(Modifier.fillMaxSize()) {
     when (auth) {
-        AuthState.Checking -> Splash()
+        AuthState.Checking -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
         AuthState.LoggedOut -> {
             val loggingIn by appViewModel.loggingIn.collectAsStateWithLifecycle()
             val error by appViewModel.loginError.collectAsStateWithLifecycle()
             LoginScreen(isLoggingIn = loggingIn, error = error, onLogin = appViewModel::login)
         }
         AuthState.LoggedIn -> MainNavigation(app, appViewModel, isInPip, onPipEligibleChanged)
+    }
+    if (!splashDone) {
+        Family7Splash(ready = auth != AuthState.Checking, onFinished = { splashDone = true })
+    }
     }
 }
 
@@ -355,19 +366,3 @@ private fun NavHostController.navigateToTab(route: String) {
 
 private fun androidx.navigation.NavDestination.hierarchy(): List<String?> =
     generateSequence(this) { it.parent }.map { it.route }.toList()
-
-@Composable
-private fun Splash() {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = painterResource(R.drawable.family7_logo),
-            contentDescription = "Family7",
-            modifier = Modifier.size(width = 160.dp, height = 70.dp)
-        )
-    }
-}

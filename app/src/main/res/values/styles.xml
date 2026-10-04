@@ -5,4 +5,14 @@
         <item name="android:colorPrimary">#03326C</item>
         <item name="android:colorAccent">#F47C20</item>
     </style>
+
+    <!--
+      Het systeem-splashscherm: het embleem op Family7-blauw. Daarna neemt het
+      geanimeerde splashscherm in de app (Family7Splash) het op precies die plek over.
+    -->
+    <style name="Theme.Family7TV.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#031A38</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_emblem</item>
+        <item name="postSplashScreenTheme">@style/Theme.Family7TV</item>
+    </style>
 </resources>

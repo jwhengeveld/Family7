@@ -22,4 +22,5 @@ dependencyResolutionManagement {
 rootProject.name = "Family7AndroidTV"
 include(":app")
 include(":core")
+include(":brand")
 include(":mobile")
