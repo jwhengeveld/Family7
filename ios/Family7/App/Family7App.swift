@@ -87,6 +87,20 @@ struct MainTabs: View {
             NavigationStack { MyListView().family7Destinations() }.miniCastBar()
                 .tabItem { Label("Mijn lijst", systemImage: "bookmark.fill") }.tag(AppTab.myList)
         }
+        .family7TabStyle()
+    }
+}
+
+private extension View {
+    /// Op een iPad (iOS 18+) kunnen de tabbladen een zijbalk worden, zoals het
+    /// menu links op tv; op een iPhone blijven het tabbladen onderin.
+    @ViewBuilder
+    func family7TabStyle() -> some View {
+        if #available(iOS 18.0, *) {
+            tabViewStyle(.sidebarAdaptable)
+        } else {
+            self
+        }
     }
 }
 

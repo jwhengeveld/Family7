@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var loader: Loader<[CategoryRow]>?
     @State private var live: LiveStreamInfo?
 
@@ -62,7 +63,13 @@ struct HomeView: View {
                                  error: loader.value == nil ? nil : loader.error) { loader.load(force: true) }
                     if let rows = loader.value {
                         let featured = rows.first { $0.id == "uitgelicht" }?.items.first ?? rows.first?.items.first
-                        if let featured { HeroCard(program: featured) }
+                        if let featured {
+                            if sizeClass == .regular {
+                                WideHero(program: featured) { model.play(.live) }
+                            } else {
+                                HeroCard(program: featured)
+                            }
+                        }
                         LiveCard(info: live) { model.play(.live) }
                         HStack(spacing: 8) {
                             NavigationLink(value: GridDestination.kids) { Label("Kids", systemImage: "figure.and.child.holdinghands") }
@@ -158,8 +165,57 @@ struct LiveCard: View {
     }
 }
 
+/// Op een iPad: de uitgelichte serie over de hele breedte, zoals op tv.
+private struct WideHero: View {
+    let program: ProgramItem
+    let onLive: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            RemoteImage(url: program.thumbnailURL)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+            LinearGradient(stops: [.init(color: Color.family7Background.opacity(0.95), location: 0),
+                                   .init(color: Color.family7Background.opacity(0.6), location: 0.45),
+                                   .init(color: .clear, location: 0.8)],
+                           startPoint: .leading, endPoint: .trailing)
+            LinearGradient(stops: [.init(color: .clear, location: 0.55), .init(color: Color.family7Background, location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("UITGELICHT").font(.subheadline.weight(.bold)).foregroundStyle(Color.family7Red)
+                Text(program.title).font(.largeTitle.weight(.bold)).lineLimit(2)
+                if !program.description.isEmpty {
+                    Text(program.description).font(.body).foregroundStyle(Color.family7Secondary).lineLimit(3)
+                }
+                HStack(spacing: 12) {
+                    NavigationLink(value: program) {
+                        Label("Bekijken", systemImage: "play.fill")
+                            .font(.headline)
+                            .padding(.horizontal, 22).padding(.vertical, 12)
+                            .background(Color.family7Red, in: Capsule())
+                    }
+                    Button(action: onLive) {
+                        Label("Live TV", systemImage: "tv")
+                            .font(.headline)
+                            .padding(.horizontal, 22).padding(.vertical, 12)
+                            .background(Color.family7Surface, in: Capsule())
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 6)
+            }
+            .frame(maxWidth: 560, alignment: .leading)
+            .padding(.horizontal, 32)
+            .padding(.bottom, 32)
+        }
+        .frame(height: 420)
+        .foregroundStyle(.white)
+    }
+}
+
 private struct ProgramRow: View {
     let row: CategoryRow
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -176,7 +232,7 @@ private struct ProgramRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 12) {
                     ForEach(row.items) { program in
-                        NavigationLink(value: program) { ProgramCard(program: program) }
+                        NavigationLink(value: program) { ProgramCard(program: program, width: sizeClass == .regular ? 240 : 168) }
                             .buttonStyle(.plain)
                     }
                 }

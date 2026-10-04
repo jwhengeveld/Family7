@@ -81,7 +81,7 @@ class Family7VideoRepository(appContext: Context) {
                 }
             }
 
-            val detail = base.copy(seasons = seasons)
+            val detail = base.copy(seasons = seasons, category = Family7Parser.seasonCountLabel(base.category, seasons.size))
             // Een verbouwde pagina zonder afleveringen vervangt geen goede versie.
             val previous = cachedDetail(slug)
             val previousCount = previous?.seasons?.sumOf { it.episodes.size }

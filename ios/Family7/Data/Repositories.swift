@@ -296,6 +296,8 @@ final class VideoRepository: @unchecked Sendable {
             }
         }
 
+        detail.category = Family7Parser.seasonCountLabel(detail.category, seasonCount: detail.seasons.count)
+
         // Een eenmalig verdacht magere pagina vervangt geen goede versie; de
         // site bevestigt of corrigeert dat bij de volgende keer.
         let count = detail.seasons.reduce(0) { $0 + $1.episodes.count }

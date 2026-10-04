@@ -72,6 +72,10 @@ import nl.family7.mobile.ui.components.SectionTitle
 import nl.family7.mobile.ui.components.SkeletonRow
 import nl.family7.mobile.ui.components.StatusBanner
 import nl.family7.mobile.ui.splitFeatured
+import nl.family7.mobile.ui.isWideScreen
+import nl.family7.mobile.ui.programCardWidth
+import nl.family7.mobile.ui.theme.Family7BlueDark
+import androidx.compose.material.icons.filled.LiveTv
 import nl.family7.mobile.ui.theme.DarkSurfaceVariant
 import nl.family7.mobile.ui.theme.Family7Red
 import nl.family7.mobile.ui.theme.TextSecondary
@@ -98,9 +102,11 @@ fun HomeScreen(
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.refreshWhileVisible() }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    // Op een tablet ligt de titelbalk doorzichtig over de kop, zoals op de TV.
+    val topBar: @Composable (transparent: Boolean) -> Unit = { transparent ->
         TopAppBar(
-            title = { Family7Logo(height = 30.dp) },
+            // Op een tablet staat het embleem al in de zijbalk, zoals op de TV.
+            title = { if (!isWideScreen()) Family7Logo(height = 30.dp) },
             actions = {
                 if (castAvailable) CastButton()
                 Box {
@@ -116,57 +122,73 @@ fun HomeScreen(
                     }
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = if (transparent) Color.Transparent else MaterialTheme.colorScheme.background
+            )
         )
-        StatusBanner(
-            isOffline = state.isOffline,
-            error = state.error.takeIf { state.data != null },
-            isRefreshing = false,
-            onRetry = viewModel::refresh
-        )
+    }
+    val wide = isWideScreen()
 
-        when {
-            state.showSkeleton -> HomeSkeleton()
-            state.showFullError -> FullScreenError(state.error.orEmpty(), onRetry = viewModel::refresh)
-            else -> {
-                val (featured, rows) = state.data.orEmpty().splitFeatured()
-                PullToRefreshBox(
-                    isRefreshing = state.isRefreshing,
-                    onRefresh = viewModel::refresh,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    LazyColumn(
-                        contentPadding = PaddingValues(bottom = 24.dp),
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            if (!wide) topBar(false)
+            StatusBanner(
+                isOffline = state.isOffline,
+                error = state.error.takeIf { state.data != null },
+                isRefreshing = false,
+                onRetry = viewModel::refresh
+            )
+
+            when {
+                state.showSkeleton -> HomeSkeleton()
+                state.showFullError -> FullScreenError(state.error.orEmpty(), onRetry = viewModel::refresh)
+                else -> {
+                    val (featured, rows) = state.data.orEmpty().splitFeatured()
+                    PullToRefreshBox(
+                        isRefreshing = state.isRefreshing,
+                        onRefresh = viewModel::refresh,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        featured?.let { program ->
-                            item(key = "hero") { HeroCard(program, onClick = { onOpenProgram(program) }) }
-                        }
-                        item(key = "live") { LiveCard(live, onClick = onWatchLive) }
-                        item(key = "chips") {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                            ) {
-                                AssistChip(
-                                    onClick = onOpenKids,
-                                    label = { Text("Kids") },
-                                    leadingIcon = { Icon(Icons.Filled.ChildCare, null, Modifier.size(18.dp)) }
-                                )
-                                AssistChip(
-                                    onClick = onOpenAZ,
-                                    label = { Text("Alle programma's") },
-                                    leadingIcon = { Icon(Icons.Filled.SortByAlpha, null, Modifier.size(18.dp)) }
-                                )
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 24.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            featured?.let { program ->
+                                item(key = "hero") {
+                                    if (isWideScreen()) {
+                                        WideHero(program, onWatch = { onOpenProgram(program) }, onLive = onWatchLive)
+                                    } else {
+                                        HeroCard(program, onClick = { onOpenProgram(program) })
+                                    }
+                                }
                             }
-                        }
-                        items(rows, key = { "row-" + it.id }) { row ->
-                            ProgramRow(row, onOpenProgram = onOpenProgram, onOpenRow = { onOpenRow(row) })
+                            item(key = "live") { LiveCard(live, onClick = onWatchLive) }
+                            item(key = "chips") {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                ) {
+                                    AssistChip(
+                                        onClick = onOpenKids,
+                                        label = { Text("Kids") },
+                                        leadingIcon = { Icon(Icons.Filled.ChildCare, null, Modifier.size(18.dp)) }
+                                    )
+                                    AssistChip(
+                                        onClick = onOpenAZ,
+                                        label = { Text("Alle programma's") },
+                                        leadingIcon = { Icon(Icons.Filled.SortByAlpha, null, Modifier.size(18.dp)) }
+                                    )
+                                }
+                            }
+                            items(rows, key = { "row-" + it.id }) { row ->
+                                ProgramRow(row, onOpenProgram = onOpenProgram, onOpenRow = { onOpenRow(row) })
+                            }
                         }
                     }
                 }
             }
         }
+        if (wide) topBar(true)
     }
 }
 
@@ -217,6 +239,66 @@ private fun HeroCard(program: ProgramItem, onClick: () -> Unit) {
                 Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("Bekijken")
+            }
+        }
+    }
+}
+
+/**
+ * De uitgelichte kop op een tablet, zoals op de TV: de afbeelding over de
+ * volle breedte, een verloop vanaf links, en titel, beschrijving en knoppen
+ * op leesbare breedte.
+ */
+@Composable
+private fun WideHero(program: ProgramItem, onWatch: () -> Unit, onLive: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(360.dp)
+            .clickable(onClick = onWatch)
+    ) {
+        RemoteImage(program.thumbnailUrl, program.title, Modifier.fillMaxSize())
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        0f to Family7BlueDark.copy(alpha = 0.95f),
+                        0.45f to Family7BlueDark.copy(alpha = 0.6f),
+                        1f to Color.Transparent
+                    )
+                )
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Family7BlueDark))
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 32.dp, end = 48.dp)
+                .fillMaxWidth(0.55f)
+        ) {
+            Text("UITGELICHT", style = MaterialTheme.typography.labelMedium, color = Family7Red, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            Text(program.title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (program.description.isNotBlank()) {
+                Spacer(Modifier.height(10.dp))
+                Text(program.description, style = MaterialTheme.typography.bodyLarge, color = TextSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = onWatch, colors = ButtonDefaults.buttonColors(containerColor = Family7Red)) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Bekijken")
+                }
+                androidx.compose.material3.FilledTonalButton(onClick = onLive) {
+                    Icon(Icons.Filled.LiveTv, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Live TV")
+                }
             }
         }
     }
@@ -277,7 +359,7 @@ private fun ProgramRow(row: CategoryRow, onOpenProgram: (ProgramItem) -> Unit, o
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(row.items, key = { it.slug }) { program ->
-                ProgramCard(program, onClick = { onOpenProgram(program) })
+                ProgramCard(program, onClick = { onOpenProgram(program) }, width = programCardWidth())
             }
         }
     }

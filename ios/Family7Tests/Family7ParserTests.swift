@@ -182,4 +182,11 @@ final class Family7ParserTests: XCTestCase {
         XCTAssertEqual(StreamURLLifetime.validFor("https://x/p.m3u8?token_endtime=\(Int(now.timeIntervalSince1970) + 600)", now: now), 0)
         XCTAssertEqual(StreamURLLifetime.validFor("https://x/index.m3u8?token=abc"), 120)
     }
+
+    func testSeasonCountLabelCountsInsteadOfTrustingAYear() {
+        XCTAssertEqual(Family7Parser.seasonCountLabel("2026 seizoenen", seasonCount: 1), "1 seizoen")
+        XCTAssertEqual(Family7Parser.seasonCountLabel("2026 seizoenen", seasonCount: 3), "3 seizoenen")
+        XCTAssertEqual(Family7Parser.seasonCountLabel("2026 seizoenen", seasonCount: 0), "2026 seizoenen")
+        XCTAssertEqual(Family7Parser.seasonCountLabel("Documentaire", seasonCount: 3), "Documentaire")
+    }
 }

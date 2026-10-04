@@ -232,6 +232,17 @@ enum Family7Parser {
         let selected: Bool
     }
 
+    /// De site zet boven een programma "N seizoenen", maar bij sommige series
+    /// staat daar het hoogste seizoensnummer (een jaartal: "2026 seizoenen").
+    /// Kennen we de seizoenen, dan tellen we zelf; andere tekst blijft staan.
+    static func seasonCountLabel(_ category: String, seasonCount: Int) -> String {
+        let text = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard seasonCount > 0,
+              text.range(of: #"^\d+\s+seizoen(en)?$"#, options: [.regularExpression, .caseInsensitive]) != nil
+        else { return category }
+        return seasonCount == 1 ? "1 seizoen" : "\(seasonCount) seizoenen"
+    }
+
     static func seasonOptions(_ doc: Document) -> [SeasonOption] {
         guard let select = doc.one(".more-videos_season-select, select[class*=season], select[name*=season]") else { return [] }
         return select.all("option").compactMap { option in

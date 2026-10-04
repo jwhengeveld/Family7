@@ -199,4 +199,12 @@ class Family7ParserTest {
         assertFalse(PageFetcher.requiresLogin("https://www.family7.nl/plus/programmas/bijbelse-karakters"))
         assertFalse(PageFetcher.requiresLogin("https://www.family7.nl/video/1-1-x"))
     }
+
+    @Test
+    fun seasonCountLabelCountsInsteadOfTrustingAYear() {
+        assertEquals("1 seizoen", Family7Parser.seasonCountLabel("2026 seizoenen", 1))
+        assertEquals("3 seizoenen", Family7Parser.seasonCountLabel("2026 seizoenen", 3))
+        assertEquals("2026 seizoenen", Family7Parser.seasonCountLabel("2026 seizoenen", 0))
+        assertEquals("Documentaire", Family7Parser.seasonCountLabel("Documentaire", 3))
+    }
 }

@@ -5,6 +5,7 @@ struct ProgramView: View {
     let preview: ProgramItem
 
     @Environment(AppModel.self) private var model
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var loader: Loader<ProgramDetail>?
     @State private var selectedSeason: String?
 
@@ -85,7 +86,8 @@ struct ProgramView: View {
                         Label(model.playback.isCasting ? "Afspelen op \(model.playback.castDeviceName ?? "de tv")" : "Afspelen",
                               systemImage: model.playback.isCasting ? "tv" : "play.fill")
                             .lineLimit(1)
-                            .frame(maxWidth: .infinity, minHeight: 30)
+                            // Op een iPad een knop, geen balk over de hele breedte.
+                            .frame(minWidth: sizeClass == .regular ? 180 : nil, maxWidth: sizeClass == .regular ? nil : .infinity, minHeight: 30)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.family7Red)
@@ -101,7 +103,10 @@ struct ProgramView: View {
                 }
             }
             if !detail.description.isEmpty {
-                Text(detail.description).font(.subheadline).foregroundStyle(Color.family7Secondary)
+                Text(detail.description)
+                    .font(sizeClass == .regular ? .body : .subheadline)
+                    .foregroundStyle(Color.family7Secondary)
+                    .frame(maxWidth: 760, alignment: .leading)
             }
         }
         .padding(16)
@@ -126,7 +131,7 @@ struct ProgramView: View {
             .padding(.top, 8)
         }
         ForEach(shown.map { [$0] } ?? [], id: \.seasonNumber) { season in
-            Text(detail.seasons.count > 1 ? "\(season.title) · \(season.episodes.count) afleveringen" : season.title)
+            Text(detail.seasons.count > 1 ? "\(season.title) · \(season.episodes.count) \(season.episodes.count == 1 ? "aflevering" : "afleveringen")" : season.title)
                 .font(.headline).padding(.horizontal, 16).padding(.top, 12)
             ForEach(season.episodes) { episode in
                 Button { model.play(.episode(episode, detail)) } label: { EpisodeRow(episode: episode) }
@@ -159,11 +164,12 @@ struct ProgramView: View {
 
 private struct EpisodeRow: View {
     let episode: EpisodeItem
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             RemoteImage(url: episode.thumbnailURL)
-                .frame(width: 132, height: 74)
+                .frame(width: sizeClass == .regular ? 220 : 132, height: sizeClass == .regular ? 124 : 74)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(Image(systemName: "play.fill").padding(6).background(.black.opacity(0.5), in: Circle()))
             VStack(alignment: .leading, spacing: 3) {

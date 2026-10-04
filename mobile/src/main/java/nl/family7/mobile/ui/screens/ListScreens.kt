@@ -41,6 +41,7 @@ import nl.family7.core.data.ProgramItem
 import nl.family7.mobile.cast.CastButton
 import nl.family7.mobile.ui.GridViewModel
 import nl.family7.mobile.ui.LoadState
+import nl.family7.mobile.ui.gridMinCellWidth
 import nl.family7.mobile.ui.MyListViewModel
 import nl.family7.mobile.ui.components.FullScreenError
 import nl.family7.mobile.ui.components.ProgramCard
@@ -185,7 +186,7 @@ private fun ProgramGrid(
                 modifier = Modifier.fillMaxSize()
             ) {
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 160.dp),
+                    columns = GridCells.Adaptive(minSize = gridMinCellWidth()),
                     contentPadding = PaddingValues(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),

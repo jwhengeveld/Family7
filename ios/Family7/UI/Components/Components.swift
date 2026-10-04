@@ -116,9 +116,11 @@ struct ProgramGrid: View {
     let programs: [ProgramItem]?
     let emptyMessage: String
 
-    private let columns = [GridItem(.adaptive(minimum: 160), spacing: 12)]
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
+        // Op een iPad grotere kaarten, zoals op tv.
+        let columns = [GridItem(.adaptive(minimum: sizeClass == .regular ? 220 : 160), spacing: 12)]
         LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
             if let programs {
                 ForEach(programs) { program in

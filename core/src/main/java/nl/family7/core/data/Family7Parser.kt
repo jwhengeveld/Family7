@@ -239,6 +239,16 @@ object Family7Parser {
 
     data class SeasonOption(val number: String, val title: String, val selected: Boolean)
 
+    /**
+     * De site zet boven een programma "N seizoenen", maar bij sommige series
+     * staat daar het hoogste seizoensnummer (een jaartal: "2026 seizoenen").
+     * Kennen we de seizoenen, dan tellen we zelf; andere tekst blijft staan.
+     */
+    fun seasonCountLabel(category: String, seasonCount: Int): String {
+        if (seasonCount <= 0 || !Regex("""^\d+\s+seizoen(en)?$""", RegexOption.IGNORE_CASE).matches(category.trim())) return category
+        return if (seasonCount == 1) "1 seizoen" else "$seasonCount seizoenen"
+    }
+
     /** De seizoenen in de keuzelijst, in de volgorde van de site. */
     fun seasonOptions(doc: Document): List<SeasonOption> {
         val select = doc.selectFirst(".more-videos_season-select, select[class*=season], select[name*=season]")

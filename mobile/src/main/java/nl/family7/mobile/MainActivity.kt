@@ -36,6 +36,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
+import nl.family7.mobile.ui.isWideScreen
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -232,146 +237,187 @@ private fun MainNavigation(
         if (!app.playback.state.value.isCasting) nav.navigate(Routes.PLAYER) { launchSingleTop = true }
     }
 
-    Scaffold(
-        bottomBar = {
-            if (!onPlayer) {
-                Column {
-                    // Tijdens het casten altijd de mini-balk, ook als er nog niets speelt.
-                    if (playback.isCasting) {
-                        MiniCastBar(
-                            state = playback,
-                            player = castPlayer,
-                            onTogglePlay = app.playback::togglePlayPause,
-                            onStop = app.playback::stopCasting,
-                            onOpen = { nav.navigate(Routes.PLAYER) { launchSingleTop = true } }
-                        )
-                    }
-                    NavigationBar {
-                        tabs.forEach { tab ->
-                            val selected = backStack?.destination?.hierarchy()?.contains(tab.route) == true
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = {
-                                    if (tab.route == "live") play(PlayRequest.Live)
-                                    else nav.navigateToTab(tab.route)
-                                },
-                                icon = { Icon(tab.icon, contentDescription = null) },
-                                label = { Text(tab.label) }
+    val wide = isWideScreen()
+    Row(Modifier.fillMaxSize()) {
+        if (wide && !onPlayer) {
+            Family7Rail(
+                isSelected = { route -> backStack?.destination?.hierarchy()?.contains(route) == true },
+                onSelect = { route -> if (route == "live") play(PlayRequest.Live) else nav.navigateToTab(route) }
+            )
+        }
+        Scaffold(
+            modifier = Modifier.weight(1f),
+            bottomBar = {
+                if (!onPlayer) {
+                    Column {
+                        // Tijdens het casten altijd de mini-balk, ook als er nog niets speelt.
+                        if (playback.isCasting) {
+                            MiniCastBar(
+                                state = playback,
+                                player = castPlayer,
+                                onTogglePlay = app.playback::togglePlayPause,
+                                onStop = app.playback::stopCasting,
+                                onOpen = { nav.navigate(Routes.PLAYER) { launchSingleTop = true } }
                             )
+                        }
+                        // Op een tablet staat de navigatie links, zoals op de TV.
+                        if (!wide) NavigationBar {
+                            tabs.forEach { tab ->
+                                val selected = backStack?.destination?.hierarchy()?.contains(tab.route) == true
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = {
+                                        if (tab.route == "live") play(PlayRequest.Live)
+                                        else nav.navigateToTab(tab.route)
+                                    },
+                                    icon = { Icon(tab.icon, contentDescription = null) },
+                                    label = { Text(tab.label) }
+                                )
+                            }
                         }
                     }
                 }
             }
+        ) { padding ->
+            NavHost(
+                navController = nav,
+                startDestination = Routes.HOME,
+                // Alleen de onderkant: elk scherm regelt zelf de ruimte voor de statusbalk.
+                modifier = if (onPlayer) Modifier else Modifier
+                    .padding(bottom = padding.calculateBottomPadding())
+                    // Liggend staan de navigatieknoppen of de camera-uitsparing opzij.
+                    .windowInsetsPadding(
+                        WindowInsets.navigationBars.union(WindowInsets.displayCutout)
+                            .only(WindowInsetsSides.Horizontal)
+                    )
+            ) {
+                composable(Routes.HOME) {
+                    HomeScreen(
+                        viewModel = viewModel { HomeViewModel(app) },
+                        castAvailable = playback.castAvailable,
+                        onOpenProgram = { nav.navigate(Routes.program(it)) },
+                        onOpenRow = { row -> nav.navigate(Routes.page(row.moreUrl, row.title)) },
+                        onOpenKids = { nav.navigate(Routes.KIDS) },
+                        onOpenAZ = { nav.navigate(Routes.AZ) },
+                        onWatchLive = { play(PlayRequest.Live) },
+                        onLogout = appViewModel::logout
+                    )
+                }
+                composable(Routes.SEARCH) {
+                    SearchScreen(
+                        viewModel = viewModel(key = "az") { GridViewModel(app, GridSource.AZ) },
+                        castAvailable = playback.castAvailable,
+                        onOpenProgram = { nav.navigate(Routes.program(it)) }
+                    )
+                }
+                composable(Routes.MY_LIST) {
+                    MyListScreen(
+                        viewModel = viewModel { MyListViewModel(app) },
+                        castAvailable = playback.castAvailable,
+                        onOpenProgram = { nav.navigate(Routes.program(it)) }
+                    )
+                }
+                composable(Routes.KIDS) {
+                    GridScreen(
+                        title = "Kids",
+                        viewModel = viewModel(key = "kids") { GridViewModel(app, GridSource.Kids) },
+                        castAvailable = playback.castAvailable,
+                        emptyMessage = "Er zijn op dit moment geen kinderprogramma's gevonden.",
+                        onOpenProgram = { nav.navigate(Routes.program(it)) },
+                        onBack = { nav.popBackStack() }
+                    )
+                }
+                composable(Routes.AZ) {
+                    GridScreen(
+                        title = "Alle programma's",
+                        viewModel = viewModel(key = "az") { GridViewModel(app, GridSource.AZ) },
+                        castAvailable = playback.castAvailable,
+                        emptyMessage = "Er zijn geen programma's gevonden.",
+                        onOpenProgram = { nav.navigate(Routes.program(it)) },
+                        onBack = { nav.popBackStack() }
+                    )
+                }
+                composable(
+                    Routes.PAGE,
+                    arguments = listOf(
+                        navArgument("url") { type = NavType.StringType; defaultValue = "" },
+                        navArgument("title") { type = NavType.StringType; defaultValue = "" }
+                    )
+                ) { entry ->
+                    val url = entry.arguments?.getString("url").orEmpty()
+                    GridScreen(
+                        title = entry.arguments?.getString("title").orEmpty(),
+                        viewModel = viewModel(key = "page-$url") { GridViewModel(app, GridSource.Page(url)) },
+                        castAvailable = playback.castAvailable,
+                        emptyMessage = "Hier staan nu geen programma's.",
+                        onOpenProgram = { nav.navigate(Routes.program(it)) },
+                        onBack = { nav.popBackStack() }
+                    )
+                }
+                composable(
+                    Routes.PROGRAM,
+                    arguments = listOf(
+                        navArgument("slug") { type = NavType.StringType },
+                        navArgument("title") { type = NavType.StringType; defaultValue = "" },
+                        navArgument("image") { type = NavType.StringType; defaultValue = "" }
+                    )
+                ) { entry ->
+                    val slug = entry.arguments?.getString("slug").orEmpty()
+                    val preview = ProgramItem(
+                        id = slug,
+                        slug = slug,
+                        title = entry.arguments?.getString("title").orEmpty(),
+                        thumbnailUrl = entry.arguments?.getString("image").orEmpty()
+                    )
+                    ProgramScreen(
+                        viewModel = viewModel(key = "program-$slug") { ProgramViewModel(app, slug) },
+                        preview = preview,
+                        myList = myList,
+                        castAvailable = playback.castAvailable,
+                        castDeviceName = playback.castDeviceName.takeIf { playback.isCasting },
+                        onPlay = { episode, detail -> play(PlayRequest.Episode(episode, detail)) },
+                        onBack = { nav.popBackStack() }
+                    )
+                }
+                composable(Routes.PLAYER) {
+                    PlayerScreen(
+                        playback = app.playback,
+                        isInPip = isInPip,
+                        onPipEligibleChanged = onPipEligibleChanged,
+                        onBack = { nav.popBackStack() }
+                    )
+                }
+            }
         }
-    ) { padding ->
-        NavHost(
-            navController = nav,
-            startDestination = Routes.HOME,
-            // Alleen de onderkant: elk scherm regelt zelf de ruimte voor de statusbalk.
-            modifier = if (onPlayer) Modifier else Modifier
-                .padding(bottom = padding.calculateBottomPadding())
-                // Liggend staan de navigatieknoppen of de camera-uitsparing opzij.
-                .windowInsetsPadding(
-                    WindowInsets.navigationBars.union(WindowInsets.displayCutout)
-                        .only(WindowInsetsSides.Horizontal)
-                )
-        ) {
-            composable(Routes.HOME) {
-                HomeScreen(
-                    viewModel = viewModel { HomeViewModel(app) },
-                    castAvailable = playback.castAvailable,
-                    onOpenProgram = { nav.navigate(Routes.program(it)) },
-                    onOpenRow = { row -> nav.navigate(Routes.page(row.moreUrl, row.title)) },
-                    onOpenKids = { nav.navigate(Routes.KIDS) },
-                    onOpenAZ = { nav.navigate(Routes.AZ) },
-                    onWatchLive = { play(PlayRequest.Live) },
-                    onLogout = appViewModel::logout
-                )
-            }
-            composable(Routes.SEARCH) {
-                SearchScreen(
-                    viewModel = viewModel(key = "az") { GridViewModel(app, GridSource.AZ) },
-                    castAvailable = playback.castAvailable,
-                    onOpenProgram = { nav.navigate(Routes.program(it)) }
-                )
-            }
-            composable(Routes.MY_LIST) {
-                MyListScreen(
-                    viewModel = viewModel { MyListViewModel(app) },
-                    castAvailable = playback.castAvailable,
-                    onOpenProgram = { nav.navigate(Routes.program(it)) }
-                )
-            }
-            composable(Routes.KIDS) {
-                GridScreen(
-                    title = "Kids",
-                    viewModel = viewModel(key = "kids") { GridViewModel(app, GridSource.Kids) },
-                    castAvailable = playback.castAvailable,
-                    emptyMessage = "Er zijn op dit moment geen kinderprogramma's gevonden.",
-                    onOpenProgram = { nav.navigate(Routes.program(it)) },
-                    onBack = { nav.popBackStack() }
-                )
-            }
-            composable(Routes.AZ) {
-                GridScreen(
-                    title = "Alle programma's",
-                    viewModel = viewModel(key = "az") { GridViewModel(app, GridSource.AZ) },
-                    castAvailable = playback.castAvailable,
-                    emptyMessage = "Er zijn geen programma's gevonden.",
-                    onOpenProgram = { nav.navigate(Routes.program(it)) },
-                    onBack = { nav.popBackStack() }
-                )
-            }
-            composable(
-                Routes.PAGE,
-                arguments = listOf(
-                    navArgument("url") { type = NavType.StringType; defaultValue = "" },
-                    navArgument("title") { type = NavType.StringType; defaultValue = "" }
-                )
-            ) { entry ->
-                val url = entry.arguments?.getString("url").orEmpty()
-                GridScreen(
-                    title = entry.arguments?.getString("title").orEmpty(),
-                    viewModel = viewModel(key = "page-$url") { GridViewModel(app, GridSource.Page(url)) },
-                    castAvailable = playback.castAvailable,
-                    emptyMessage = "Hier staan nu geen programma's.",
-                    onOpenProgram = { nav.navigate(Routes.program(it)) },
-                    onBack = { nav.popBackStack() }
-                )
-            }
-            composable(
-                Routes.PROGRAM,
-                arguments = listOf(
-                    navArgument("slug") { type = NavType.StringType },
-                    navArgument("title") { type = NavType.StringType; defaultValue = "" },
-                    navArgument("image") { type = NavType.StringType; defaultValue = "" }
-                )
-            ) { entry ->
-                val slug = entry.arguments?.getString("slug").orEmpty()
-                val preview = ProgramItem(
-                    id = slug,
-                    slug = slug,
-                    title = entry.arguments?.getString("title").orEmpty(),
-                    thumbnailUrl = entry.arguments?.getString("image").orEmpty()
-                )
-                ProgramScreen(
-                    viewModel = viewModel(key = "program-$slug") { ProgramViewModel(app, slug) },
-                    preview = preview,
-                    myList = myList,
-                    castAvailable = playback.castAvailable,
-                    castDeviceName = playback.castDeviceName.takeIf { playback.isCasting },
-                    onPlay = { episode, detail -> play(PlayRequest.Episode(episode, detail)) },
-                    onBack = { nav.popBackStack() }
-                )
-            }
-            composable(Routes.PLAYER) {
-                PlayerScreen(
-                    playback = app.playback,
-                    isInPip = isInPip,
-                    onPipEligibleChanged = onPipEligibleChanged,
-                    onBack = { nav.popBackStack() }
-                )
-            }
+    }
+}
+
+/**
+ * De navigatie op een tablet: een smalle balk links met het Family7-embleem,
+ * zoals de zijbalk van de TV-app.
+ */
+@Composable
+private fun Family7Rail(isSelected: (String) -> Boolean, onSelect: (String) -> Unit) {
+    NavigationRail(
+        containerColor = nl.family7.mobile.ui.theme.DarkSurface,
+        header = {
+            Image(
+                painter = painterResource(nl.family7.brand.R.drawable.family7_mark),
+                contentDescription = "Family7",
+                modifier = Modifier
+                    .padding(top = 16.dp, bottom = 24.dp)
+                    .size(width = 48.dp, height = 43.dp)
+            )
+        },
+        modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Vertical + WindowInsetsSides.Start))
+    ) {
+        tabs.forEach { tab ->
+            NavigationRailItem(
+                selected = isSelected(tab.route),
+                onClick = { onSelect(tab.route) },
+                icon = { Icon(tab.icon, contentDescription = null) },
+                label = { Text(tab.label) }
+            )
         }
     }
 }

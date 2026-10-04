@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import nl.family7.mobile.ui.isWideScreen
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyRow
@@ -97,6 +99,7 @@ fun ProgramScreen(
             onRefresh = { viewModel.detail.refresh() },
             modifier = Modifier.fillMaxSize()
         ) {
+            val wide = isWideScreen()
             LazyColumn(contentPadding = PaddingValues(bottom = 32.dp), modifier = Modifier.fillMaxSize()) {
                 item(key = "header") {
                     Header(
@@ -133,7 +136,8 @@ fun ProgramScreen(
                                         Button(
                                             onClick = { onPlay(first, detail) },
                                             colors = ButtonDefaults.buttonColors(containerColor = Family7Red),
-                                            modifier = Modifier.weight(1f)
+                                            // Op een tablet zoals op tv: een knop, geen balk over de hele breedte.
+                                            modifier = if (wide) Modifier.widthIn(min = 200.dp) else Modifier.weight(1f)
                                         ) {
                                             Icon(
                                                 if (castDeviceName != null) Icons.Filled.Cast else Icons.Filled.PlayArrow,
@@ -166,7 +170,12 @@ fun ProgramScreen(
                                 }
                                 if (detail.description.isNotBlank()) {
                                     Spacer(Modifier.height(12.dp))
-                                    Text(detail.description, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                                    Text(
+                                        detail.description,
+                                        style = if (wide) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+                                        color = TextSecondary,
+                                        modifier = Modifier.widthIn(max = 760.dp)
+                                    )
                                 }
                             }
                         }
@@ -195,7 +204,7 @@ fun ProgramScreen(
                         listOfNotNull(shown).forEach { season ->
                             item(key = "season-${season.seasonNumber}") {
                                 Text(
-                                    if (detail.seasons.size > 1) "${season.title} · ${season.episodes.size} afleveringen" else season.title,
+                                    if (detail.seasons.size > 1) "${season.title} · ${season.episodes.size} ${if (season.episodes.size == 1) "aflevering" else "afleveringen"}" else season.title,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)
@@ -300,7 +309,7 @@ private fun EpisodeRow(episode: EpisodeItem, onClick: () -> Unit) {
     ) {
         Box(
             Modifier
-                .width(132.dp)
+                .width(if (isWideScreen()) 220.dp else 132.dp)
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(8.dp))
         ) {
