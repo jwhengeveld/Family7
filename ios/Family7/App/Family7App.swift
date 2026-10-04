@@ -61,7 +61,7 @@ struct RootView: View {
         #if DEBUG
         // Alleen voor testen: een deep link als opstartargument, zodat een
         // simulator zonder scherm de app kan besturen:
-        // xcrun simctl launch <sim> nl.family7.ios -family7DeepLink family7://live
+        // xcrun simctl launch <sim> com.xiappdesign.family7 -family7DeepLink family7://live
         .task(id: model.authState == .loggedIn) {
             guard model.authState == .loggedIn,
                   let link = UserDefaults.standard.string(forKey: "family7DeepLink"),

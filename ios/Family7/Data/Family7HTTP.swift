@@ -7,7 +7,7 @@ import SwiftSoup
 /// dus nooit onbeschermd op schijf en gaan niet mee in een back-up; dezelfde
 /// afweging als de AndroidKeyStore in de Android-apps.
 struct CookieVault: Sendable {
-    private let service = "nl.family7.session"
+    private let service = "com.xiappdesign.family7.session"
     private let account = "cookies"
 
     func load() -> [HTTPCookie] {

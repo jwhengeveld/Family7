@@ -14,7 +14,7 @@
 # De schermen praten met Media3 via de officiele API; de sessie- en UI-modules
 # leveren eigen regels mee. Alleen de weergavenamen van onze eigen modellen
 # blijven nodig voor leesbare foutmeldingen.
--keepnames class nl.family7.core.data.** { *; }
+-keepnames class com.xiappdesign.family7.core.data.** { *; }
 
 # org.json zit in het platform.
 -dontwarn org.json.**

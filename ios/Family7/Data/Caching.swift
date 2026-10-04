@@ -108,6 +108,6 @@ final class NetworkMonitor {
                 self.isOnline = online
             }
         }
-        monitor.start(queue: DispatchQueue(label: "nl.family7.network"))
+        monitor.start(queue: DispatchQueue(label: "com.xiappdesign.family7.network"))
     }
 }
