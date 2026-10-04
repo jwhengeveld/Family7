@@ -254,7 +254,7 @@ final class PlaybackManager: NSObject {
             }
             return url
         case .live:
-            let info = try await live.liveInfo()
+            let info = try await live.liveInfo(force: forceFresh)
             title = info.currentProgram.nonEmpty ?? "Family7 Live"
             subtitle = [info.timeRange, "Live"].filter { !$0.isEmpty }.joined(separator: " · ")
             if !info.imageURL.isEmpty { artworkURL = info.imageURL }

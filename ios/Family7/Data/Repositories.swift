@@ -394,10 +394,7 @@ final class LiveRepository: @unchecked Sendable {
         }
         let previous = cachedGuide(date)
         do {
-            let page = try await pages.page("https://www.family7.nl/tv-guide-get-items/\(date)T00:00:00/23:59:59/not_today_search", fresh: true)
-            guard let json = try JSONSerialization.jsonObject(with: Data(page.html.utf8)) as? [String: Any],
-                  let html = json["renderedItems"] as? String else { throw Family7Error("De tv-gids is niet te lezen.") }
-            let fresh = Family7Parser.guideItems(try SwiftSoup.parseBodyFragment(html, "https://www.family7.nl"))
+            let fresh = try await fetchGuide(date)
             // Eén keer een verdacht lege of halve dag houdt de vorige versie vast.
             let items: [GuideItem]
             if let previous, !PlausibilityGate.shared.accept("guide:\(date)", previous: previous.count, new: fresh.count) {
@@ -412,6 +409,28 @@ final class LiveRepository: @unchecked Sendable {
             if let previous { return previous }
             throw error
         }
+    }
+
+    /// De gids van de site. Eerst het adres dat de tv-gidspagina zelf gebruikt
+    /// (per dag, JSON met HTML erin); geeft dat niets bruikbaars, dan de gewone
+    /// tv-gidspagina, die de uitzendingen van vandaag toont.
+    private func fetchGuide(_ date: String) async throws -> [GuideItem] {
+        var failure: Error?
+        do {
+            let page = try await pages.page("https://www.family7.nl/tv-guide-get-items/\(date)T00:00:00/23:59:59/not_today_search", fresh: true)
+            // Normaal JSON met "renderedItems"; is het ooit gewone HTML, dan die.
+            let json = try? JSONSerialization.jsonObject(with: Data(page.html.utf8)) as? [String: Any]
+            let html = (json?["renderedItems"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? page.html
+            let items = Family7Parser.guideItems(try SwiftSoup.parseBodyFragment(html, "https://www.family7.nl"))
+            if !items.isEmpty { return items }
+        } catch {
+            failure = error
+        }
+        if date == Self.guideDate(0) {
+            let items = Family7Parser.guideItems(try await pages.document("https://www.family7.nl/tvgids", fresh: true))
+            if !items.isEmpty { return items }
+        }
+        throw failure ?? Family7Error("De tv-gids is niet te lezen.")
     }
 
     /// Wat er van een dag al bekend is, zonder netwerk: om meteen iets te tonen.
@@ -441,7 +460,30 @@ final class LiveRepository: @unchecked Sendable {
     /// Het programma van nu en het stream-adres. De laatst werkende speler- en
     /// stream-adressen worden lokaal onthouden als noodgreep, omdat
     /// Streampartner regelmatig van host wisselt.
-    func liveInfo() async throws -> LiveStreamInfo {
+    private var lastLive: (at: Date, info: LiveStreamInfo)?
+    private var liveTask: Task<LiveStreamInfo, Error>?
+    /// Kort genoeg dat het stream-adres nog geldig is en "nu op tv" klopt.
+    private static let liveInfoTTL: TimeInterval = 120
+
+    /// Het programma van nu en het stream-adres. Het startscherm vraagt dit al
+    /// op; binnen twee minuten krijgt live het onthouden antwoord, zodat de
+    /// uitzending zonder wachten start. Wie tegelijk vraagt, deelt één
+    /// zoektocht. `force` zoekt opnieuw (bij een fout in de speler).
+    func liveInfo(force: Bool = false) async throws -> LiveStreamInfo {
+        let (hit, running) = guideLock.withLock { (lastLive, liveTask) }
+        if !force, let hit, !hit.info.streamURL.isEmpty, Date().timeIntervalSince(hit.at) < Self.liveInfoTTL {
+            return hit.info
+        }
+        if !force, let running { return try await running.value }
+        let task = Task { try await self.fetchLiveInfo() }
+        guideLock.withLock { liveTask = task }
+        defer { guideLock.withLock { if liveTask == task { liveTask = nil } } }
+        let info = try await task.value
+        if !info.streamURL.isEmpty { guideLock.withLock { lastLive = (Date(), info) } }
+        return info
+    }
+
+    private func fetchLiveInfo() async throws -> LiveStreamInfo {
         let doc = try await pages.document(Self.livePage, maxAge: 15)
         let html = (try? doc.outerHtml()) ?? ""
 

@@ -2,6 +2,7 @@ package nl.family7.core.data
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.jsoup.Jsoup
@@ -22,10 +23,13 @@ class Family7LiveRepository(appContext: Context) {
 
     companion object {
         private const val LIVE_PAGE_URL = "https://www.family7.nl/plus/live"
+        private const val GUIDE_PAGE_URL = "https://www.family7.nl/tvgids"
         private const val KEY_LAST_PLAYER_URL = "last_player_url"
         private const val KEY_LAST_STREAM_URL = "last_stream_url"
         /** De gids verandert zelden; vaker ophalen dan dit is zinloos. */
         private const val GUIDE_TTL_MS = 15 * 60_000L
+        /** Kort genoeg dat het stream-adres nog geldig is en "nu op tv" klopt. */
+        private const val LIVE_INFO_TTL_MS = 2 * 60_000L
         private const val GUIDE_DAYS_KEPT = 12
 
         private val amsterdam: java.util.TimeZone = java.util.TimeZone.getTimeZone("Europe/Amsterdam")
@@ -55,11 +59,7 @@ class Family7LiveRepository(appContext: Context) {
             if (now - at < GUIDE_TTL_MS) return@withContext Result.success(items)
         }
         val previous = synchronized(guideMemory) { guideMemory[date]?.second } ?: readGuide(date)
-        runCatching {
-            val page = pages.page("${Family7Parser.BASE_URL}/tv-guide-get-items/${date}T00:00:00/23:59:59/not_today_search", fresh = true)
-            val html = org.json.JSONObject(page.html).optString("renderedItems")
-            Family7Parser.guideItems(Jsoup.parseBodyFragment(html, Family7Parser.BASE_URL))
-        }.fold(
+        runCatching { fetchGuide(date) }.fold(
             onSuccess = { fresh ->
                 // Eén keer een verdacht lege of halve dag houdt de vorige versie vast.
                 val items = if (previous != null && !Plausibility.accept("guide:$date", previous.size, fresh.size)) previous else fresh
@@ -78,6 +78,27 @@ class Family7LiveRepository(appContext: Context) {
      */
     suspend fun prefetchGuide() {
         (-1..2).map { guideDate(it) }.forEach { date -> getGuide(date) }
+    }
+
+    /**
+     * De gids van de site. Eerst het adres dat de tv-gidspagina zelf gebruikt
+     * (per dag, als JSON met HTML erin); geeft dat niets bruikbaars, dan de
+     * gewone tv-gidspagina, die de uitzendingen van vandaag toont.
+     */
+    private suspend fun fetchGuide(date: String): List<GuideItem> {
+        val fromEndpoint = runCatching {
+            val page = pages.page("${Family7Parser.BASE_URL}/tv-guide-get-items/${date}T00:00:00/23:59:59/not_today_search", fresh = true)
+            // Normaal JSON met "renderedItems"; is het ooit gewone HTML, dan die.
+            val html = runCatching { org.json.JSONObject(page.html).optString("renderedItems") }.getOrNull()
+                ?.takeIf { it.isNotBlank() } ?: page.html
+            Family7Parser.guideItems(Jsoup.parseBodyFragment(html, Family7Parser.BASE_URL))
+        }
+        fromEndpoint.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
+        if (date == guideDate(0)) {
+            val items = Family7Parser.guideItems(pages.document(GUIDE_PAGE_URL, fresh = true))
+            if (items.isNotEmpty()) return items
+        }
+        throw fromEndpoint.exceptionOrNull() ?: IllegalStateException("De tv-gids is niet te lezen.")
     }
 
     /** Wat er van een dag al bekend is, zonder netwerk: om meteen iets te tonen. */
@@ -113,7 +134,28 @@ class Family7LiveRepository(appContext: Context) {
         editor.apply()
     }
 
-    suspend fun getLiveInfo(): Result<LiveStreamInfo> = withContext(Dispatchers.IO) {
+    /** De laatst opgezochte livegegevens, met het moment van ophalen. */
+    @Volatile private var lastLive: Pair<Long, LiveStreamInfo>? = null
+    /** Eén zoektocht tegelijk: wie tegelijk vraagt, wacht en krijgt dezelfde uitkomst. */
+    private val liveLock = kotlinx.coroutines.sync.Mutex()
+
+    /**
+     * Het programma van nu en het stream-adres. Het startscherm vraagt dit al
+     * op; binnen [LIVE_INFO_TTL_MS] krijgt live het onthouden antwoord, zodat
+     * de uitzending zonder wachten start. [force] zoekt opnieuw (bij een fout
+     * in de speler).
+     */
+    suspend fun getLiveInfo(force: Boolean = false): Result<LiveStreamInfo> = liveLock.withLock {
+        val hit = lastLive
+        if (!force && hit != null && hit.second.streamUrl.isNotBlank() &&
+            System.currentTimeMillis() - hit.first < LIVE_INFO_TTL_MS
+        ) return@withLock Result.success(hit.second)
+        fetchLiveInfo().onSuccess { info ->
+            if (info.streamUrl.isNotBlank()) lastLive = System.currentTimeMillis() to info
+        }
+    }
+
+    private suspend fun fetchLiveInfo(): Result<LiveStreamInfo> = withContext(Dispatchers.IO) {
         try {
             // Via de gedeelde ophaler: een verlopen sessie wordt herkend en
             // gemeld in plaats van dat de livepagina leeg lijkt.

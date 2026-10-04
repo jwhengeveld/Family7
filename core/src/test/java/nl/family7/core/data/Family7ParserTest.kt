@@ -231,4 +231,38 @@ class Family7ParserTest {
         // Het standaardlogo telt niet als programmabeeld.
         assertTrue(items.none { it.imageUrl.contains("fam7logo") })
     }
+
+    /** De gids met neutrale klassenamen: zo zou een verbouwing van de site eruitzien. */
+    private fun rebuiltGuide(html: String): String = html
+        .replace("tv-guide-item-time", "s-t")
+        .replace("tv-guide-item-title", "s-h")
+        .replace("tv-guide-item-data", "s-d")
+        .replace("tv-guide-item-description", "s-x")
+        .replace("tv-guide-item-image", "s-i")
+        .replace("tv-guide-item", "s-row")
+
+    @Test
+    fun guideItemsSurviveRenamedClasses() {
+        val html = rebuiltGuide(org.json.JSONObject(fixture("tvgids_dag.json")).getString("renderedItems"))
+        assertTrue("de oude klassenamen zijn echt weg", !html.contains("tv-guide-item"))
+        val items = Family7Parser.guideItems(Jsoup.parseBodyFragment(html, Family7Parser.BASE_URL))
+
+        assertEquals(42, items.size)
+        assertEquals("00:30", items.first().start)
+        assertEquals("EuroSpirit", items.first().title)
+        val joyce = items.first { it.title == "Joyce Meyer" }
+        assertEquals("01:00", joyce.start)
+        assertEquals("joyce-meyer", joyce.programSlug)
+        assertTrue(joyce.imageUrl.startsWith("https://www.family7.nl/sites/default/files/"))
+        // Kijkwijzer-icoontjes zijn geen programmabeeld.
+        assertTrue(items.none { it.imageUrl.contains("Kijkwijzer", ignoreCase = true) })
+    }
+
+    @Test
+    fun guideItemsAlsoReadTheTvGuidePage() {
+        // De uitwijkroute als het gids-adres niet werkt: de gewone tv-gidspagina.
+        val items = Family7Parser.guideItems(Jsoup.parse(fixture("tvgids_pagina.html"), "https://www.family7.nl/tvgids"))
+        assertTrue(items.size >= 3)
+        assertTrue(items.all { it.start.matches(Regex("""\d{2}:\d{2}""")) && it.title.isNotBlank() })
+    }
 }

@@ -362,15 +362,22 @@ extension Family7Parser {
     /// "renderedItems"-deel). Items zonder tijd of titel slaan we over; het
     /// standaard-Family7-logo is geen programmabeeld.
     static func guideItems(_ doc: Element) -> [GuideItem] {
-        let items = (try? doc.select("li.tv-guide-item").array()) ?? []
-        return items.compactMap { item in
-            let timeText = item.one(".tv-guide-item-time")?.plainText ?? ""
-            guard let range = timeText.range(of: #"\d{1,2}:\d{2}"#, options: .regularExpression) else { return nil }
-            var time = String(timeText[range])
+        var seen = Set<String>()
+        return guideEntries(doc).compactMap { item -> GuideItem? in
+            let timeSource = item.one(".tv-guide-item-time, [class*=time], time")?.plainText ?? item.plainText
+            guard let range = timeSource.range(of: guideTime, options: .regularExpression) else { return nil }
+            var time = String(timeSource[range])
             if time.count == 4 { time = "0" + time }
-            let title = cleanGuideText(item.one(".tv-guide-item-title")?.plainText ?? "")
-            guard !title.isEmpty else { return nil }
-            let image = (try? item.one(".tv-guide-item-image img")?.attr("src")) ?? ""
+            let title = cleanGuideText(item.one(".tv-guide-item-title, [class*=title], h2, h3, h4, strong")?.plainText ?? "")
+            // Een "titel" die alleen de tijd is, is geen titel.
+            guard !title.isEmpty, title.range(of: "^" + guideTime + "$", options: .regularExpression) == nil else { return nil }
+            let images = (try? item.select("img").array()) ?? []
+            let picked = item.one(".tv-guide-item-image img, [class*=image] img")
+                ?? images.first { img in !isGuideIcon(((try? img.attr("src")) ?? "") + ((try? img.attr("alt")) ?? "")) }
+            let image = picked.map { img in
+                let lazy = (try? img.attr("data-src")) ?? ""
+                return lazy.isEmpty ? ((try? img.attr("src")) ?? "") : lazy
+            } ?? ""
             let links = ((try? item.select("a[href]").array()) ?? []).compactMap { try? $0.attr("href") }
             func slug(_ pattern: String) -> String {
                 for link in links {
@@ -380,15 +387,40 @@ extension Family7Parser {
                 }
                 return ""
             }
+            // Dubbel genoemde uitzendingen (een omhulsel en zijn inhoud) één keer.
+            guard seen.insert(time + "|" + title).inserted else { return nil }
             return GuideItem(
                 start: time,
                 title: title,
-                episode: cleanGuideText(item.one(".tv-guide-item-data")?.plainText ?? ""),
-                description: cleanGuideText(item.one(".tv-guide-item-description")?.plainText ?? ""),
-                imageURL: image.isEmpty || image.contains("fam7logo") ? "" : Family7URL.absolute(image),
+                episode: cleanGuideText(item.one(".tv-guide-item-data, [class*=data], [class*=subtitle], [class*=episode]")?.plainText ?? ""),
+                description: cleanGuideText(item.one(".tv-guide-item-description, [class*=description], [class*=desc]")?.plainText ?? ""),
+                imageURL: image.isEmpty || isGuideIcon(image) ? "" : Family7URL.absolute(image),
                 programSlug: slug(#"/programmas/[^/?#]+"#),
                 videoSlug: slug(#"/video/[^/?#]+"#)
             )
+        }
+    }
+
+    private static let guideTime = #"\b\d{1,2}:\d{2}\b"#
+    private static let guideHeading = "h2, h3, h4, strong, [class*=title]"
+
+    /// Kijkwijzer-icoontjes en het Family7-logo zijn geen programmabeeld.
+    private static func isGuideIcon(_ text: String) -> Bool {
+        text.range(of: #"(?i)kijkwijzer|fam7logo|/icon/|logo\.(png|jpe?g|svg)"#, options: .regularExpression) != nil
+    }
+
+    /// De uitzendingen in de gids. Eerst de bekende opmaak van de site; is die
+    /// verbouwd, dan elk lijstitem of artikel met een tijd en een kop, zonder
+    /// zulke items erin (het binnenste item, niet de hele lijst).
+    private static func guideEntries(_ doc: Element) -> [Element] {
+        let known = (try? doc.select("li.tv-guide-item").array()) ?? []
+        if !known.isEmpty { return known }
+        func isEntry(_ el: Element) -> Bool {
+            el.plainText.range(of: guideTime, options: .regularExpression) != nil && el.one(guideHeading) != nil
+        }
+        let candidates = (try? doc.select("li, article, [class*=item]").array()) ?? []
+        return candidates.filter { el in
+            isEntry(el) && !(((try? el.select("li, article").array()) ?? []).contains { $0 !== el && isEntry($0) })
         }
     }
 

@@ -350,24 +350,50 @@ object Family7Parser {
      * "renderedItems"-deel). Items zonder tijd of titel slaan we over; het
      * standaard-Family7-logo is geen programmabeeld.
      */
-    fun guideItems(doc: Document): List<GuideItem> =
-        doc.select("li.tv-guide-item").mapNotNull { item ->
-            val time = Regex("""\d{1,2}:\d{2}""").find(item.selectFirst(".tv-guide-item-time")?.text().orEmpty())?.value
-                ?.padStart(5, '0') ?: return@mapNotNull null
-            val title = cleanGuideText(item.selectFirst(".tv-guide-item-title")?.text().orEmpty())
-            if (title.isBlank()) return@mapNotNull null
-            val image = item.selectFirst(".tv-guide-item-image img")?.attr("src").orEmpty()
-            val links = item.select("a[href]").map { it.attr("href") }
-            GuideItem(
-                start = time,
-                title = title,
-                episode = cleanGuideText(item.selectFirst(".tv-guide-item-data")?.text().orEmpty()),
-                description = cleanGuideText(item.selectFirst(".tv-guide-item-description")?.text().orEmpty()),
-                imageUrl = if (image.isBlank() || image.contains("fam7logo")) "" else absolute(image),
-                programSlug = links.firstNotNullOfOrNull { Regex("""/programmas/([^/?#]+)""").find(it)?.groupValues?.get(1) }.orEmpty(),
-                videoSlug = links.firstNotNullOfOrNull { Regex("""/video/([^/?#]+)""").find(it)?.groupValues?.get(1) }.orEmpty()
-            )
+    fun guideItems(doc: Document): List<GuideItem> = guideEntries(doc).mapNotNull { item ->
+        val time = GUIDE_TIME.find(item.selectFirst(".tv-guide-item-time, [class*=time], time")?.text() ?: item.text())?.value
+            ?.padStart(5, '0') ?: return@mapNotNull null
+        val title = cleanGuideText(
+            item.selectFirst(".tv-guide-item-title, [class*=title], h2, h3, h4, strong")?.text().orEmpty()
+        )
+        // Een "titel" die alleen de tijd is, is geen titel.
+        if (title.isBlank() || GUIDE_TIME.matches(title)) return@mapNotNull null
+        val image = (item.selectFirst(".tv-guide-item-image img, [class*=image] img")
+            ?: item.select("img").firstOrNull { !GUIDE_ICON.containsMatchIn(it.attr("src") + it.attr("alt")) })
+            ?.let { it.attr("data-src").ifBlank { it.attr("src") } }.orEmpty()
+        val links = item.select("a[href]").map { it.attr("href") }
+        GuideItem(
+            start = time,
+            title = title,
+            episode = cleanGuideText(item.selectFirst(".tv-guide-item-data, [class*=data], [class*=subtitle], [class*=episode]")?.text().orEmpty()),
+            description = cleanGuideText(item.selectFirst(".tv-guide-item-description, [class*=description], [class*=desc]")?.text().orEmpty()),
+            imageUrl = if (image.isBlank() || GUIDE_ICON.containsMatchIn(image)) "" else absolute(image),
+            programSlug = links.firstNotNullOfOrNull { Regex("""/programmas/([^/?#]+)""").find(it)?.groupValues?.get(1) }.orEmpty(),
+            videoSlug = links.firstNotNullOfOrNull { Regex("""/video/([^/?#]+)""").find(it)?.groupValues?.get(1) }.orEmpty()
+        )
+    }.let { items ->
+        // Dubbel genoemde uitzendingen (een omhulsel en zijn inhoud) één keer.
+        items.distinctBy { it.start to it.title }
+    }
+
+    /**
+     * De uitzendingen in de gids. Eerst de bekende opmaak van de site; is die
+     * verbouwd, dan elk lijstitem of artikel met een tijd en een kop, zonder
+     * zulke items erin (het binnenste item, niet de hele lijst).
+     */
+    private fun guideEntries(doc: Document): List<Element> {
+        val known = doc.select("li.tv-guide-item")
+        if (known.isNotEmpty()) return known
+        return doc.select("li, article, [class*=item]").filter { el ->
+            GUIDE_TIME.containsMatchIn(el.text()) &&
+                el.selectFirst("h2, h3, h4, strong, [class*=title]") != null &&
+                el.select("li, article").none { inner -> inner !== el && GUIDE_TIME.containsMatchIn(inner.text()) && inner.selectFirst("h2, h3, h4, strong, [class*=title]") != null }
         }
+    }
+
+    private val GUIDE_TIME = Regex("""\b\d{1,2}:\d{2}\b""")
+    /** Kijkwijzer-icoontjes en het Family7-logo zijn geen programmabeeld. */
+    private val GUIDE_ICON = Regex("""(?i)kijkwijzer|fam7logo|/icon/|logo\.(png|jpe?g|svg)""")
 
     /**
      * De gids bevat Windows-tekens die als stuurcode binnenkomen (U+0080 tot

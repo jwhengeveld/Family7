@@ -219,4 +219,32 @@ final class Family7ParserTests: XCTestCase {
         XCTAssertEqual(ProgramItem.suggestions(all, for: "diam").map(\.title), ["Diamant en Goud", "De Diamant"])
         XCTAssertEqual(ProgramItem.suggestions(all, for: "  ").count, 0)
     }
+
+    func testGuideItemsSurviveRenamedClasses() throws {
+        let json = try JSONSerialization.jsonObject(with: Data(try fixture("tvgids_dag.json").utf8)) as! [String: Any]
+        // Neutrale klassenamen: zo zou een verbouwing van de site eruitzien.
+        let html = (json["renderedItems"] as! String)
+            .replacingOccurrences(of: "tv-guide-item-time", with: "s-t")
+            .replacingOccurrences(of: "tv-guide-item-title", with: "s-h")
+            .replacingOccurrences(of: "tv-guide-item-data", with: "s-d")
+            .replacingOccurrences(of: "tv-guide-item-description", with: "s-x")
+            .replacingOccurrences(of: "tv-guide-item-image", with: "s-i")
+            .replacingOccurrences(of: "tv-guide-item", with: "s-row")
+        XCTAssertFalse(html.contains("tv-guide-item"))
+        let items = Family7Parser.guideItems(try SwiftSoup.parseBodyFragment(html, "https://www.family7.nl"))
+
+        XCTAssertEqual(items.count, 42)
+        XCTAssertEqual(items.first?.start, "00:30")
+        XCTAssertEqual(items.first?.title, "EuroSpirit")
+        let joyce = try XCTUnwrap(items.first { $0.title == "Joyce Meyer" })
+        XCTAssertEqual(joyce.programSlug, "joyce-meyer")
+        XCTAssertTrue(joyce.imageURL.hasPrefix("https://www.family7.nl/sites/default/files/"))
+        XCTAssertFalse(items.contains { $0.imageURL.lowercased().contains("kijkwijzer") })
+    }
+
+    func testGuideItemsAlsoReadTheTvGuidePage() throws {
+        let items = Family7Parser.guideItems(try SwiftSoup.parse(try fixture("tvgids_pagina.html"), "https://www.family7.nl/tvgids"))
+        XCTAssertGreaterThanOrEqual(items.count, 3)
+        XCTAssertTrue(items.allSatisfy { $0.start.count == 5 && !$0.title.isEmpty })
+    }
 }

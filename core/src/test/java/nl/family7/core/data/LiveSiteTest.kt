@@ -78,4 +78,16 @@ class LiveSiteTest {
         assertTrue(PageFetcher.isAnonymous(page("https://www.family7.nl/plus/a-z?title=All")), "anonieme markering verdwenen")
         assertTrue(Family7Parser.isLoginPage(page("https://www.family7.nl/user/login")), "inlogformulier niet meer herkend")
     }
+
+    @Test
+    fun `de tv-gids levert nog uitzendingen met tijd en titel`() {
+        val tomorrow = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).apply {
+            timeZone = java.util.TimeZone.getTimeZone("Europe/Amsterdam")
+        }.format(java.util.Date(System.currentTimeMillis() + 24 * 3600_000L))
+        val json = org.json.JSONObject(get("https://www.family7.nl/tv-guide-get-items/${tomorrow}T00:00:00/23:59:59/not_today_search"))
+        val items = Family7Parser.guideItems(Jsoup.parseBodyFragment(json.getString("renderedItems"), "https://www.family7.nl"))
+        assertTrue(items.size >= 10, "te weinig uitzendingen: ${items.size}")
+        assertTrue(items.all { it.start.matches(Regex("""\d{2}:\d{2}""")) && it.title.isNotBlank() })
+        assertTrue(items.any { it.programSlug.isNotBlank() }, "geen enkele link naar een programma")
+    }
 }

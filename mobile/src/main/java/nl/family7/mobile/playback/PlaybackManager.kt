@@ -304,7 +304,7 @@ class PlaybackManager(
                     episodeItem(request, url)
                 }
 
-            PlayRequest.Live -> liveRepo.getLiveInfo().mapCatching { info ->
+            PlayRequest.Live -> liveRepo.getLiveInfo(force = forceFresh).mapCatching { info ->
                 if (info.streamUrl.isBlank()) error("De livestream van Family7 is nu niet te vinden.")
                 _state.update {
                     it.copy(
