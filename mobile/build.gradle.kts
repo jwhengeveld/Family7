@@ -27,15 +27,15 @@ val castReceiverId: String =
         ?: "CC1AD845"
 
 android {
-    namespace = "com.xiappdesign.family7.mobile"
+    namespace = "nl.family7.mobile"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.xiappdesign.family7.mobile"
+        applicationId = "nl.family7.mobile"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.4.0"
+        versionCode = 1
+        versionName = "1.3.0"
 
         buildConfigField("String", "CAST_RECEIVER_ID", "\"$castReceiverId\"")
     }

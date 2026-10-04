@@ -106,7 +106,7 @@ Alleen in debug-builds kan een deep link als opstartargument meegegeven
 worden, handig voor een simulator zonder scherm:
 
 ```bash
-xcrun simctl launch booted com.xiappdesign.family7 -family7DeepLink family7://live
+xcrun simctl launch booted nl.family7.ios -family7DeepLink family7://live
 ```
 
 ## 🧱 Opbouw

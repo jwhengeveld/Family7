@@ -18,15 +18,15 @@ val keystoreProperties = Properties().apply {
 val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
 
 android {
-    namespace = "com.xiappdesign.family7.tv"
+    namespace = "nl.family7.tv"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.xiappdesign.family7.tv"
+        applicationId = "nl.family7.tv"
         minSdk = 24
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.4.0"
+        versionCode = 6
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

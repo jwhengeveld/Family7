@@ -16,12 +16,6 @@ repository:
 De Android-apps delen hun datalaag (`core/`) en merk (`brand/`); de iOS-app is
 daar een Swift-port van, met dezelfde tests op dezelfde pagina's van family7.nl.
 
-> **Overstappen vanaf 1.3.0 of ouder:** vanaf 1.4.0 heten de apps
-> `com.xiappdesign.family7.tv`, `com.xiappdesign.family7.mobile` en (iOS)
-> `com.xiappdesign.family7`, in plaats van `nl.family7.*`. Voor Android is dat een
-> nieuwe app: hij installeert naast de oude in plaats van eroverheen. Verwijder de
-> oude TV-app (`nl.family7.tv`) en log in de nieuwe opnieuw in.
-
 Een moderne, native **Android TV / Google TV** applicatie voor [Family7](https://www.family7.nl/), ontwikkeld in **Kotlin** met **Jetpack Compose for TV**, **Material 3**, en **AndroidX Media3 (ExoPlayer)**.
 
 De app biedt volledige ondersteuning voor zowel **Live TV** (Family7 Plus livestream) als de complete **On Demand** videotheek met alle programma's, seizoenen, afleveringen en zoekfunctie.
@@ -118,7 +112,7 @@ De app biedt volledige ondersteuning voor zowel **Live TV** (Family7 Plus livest
 ## 📱 Telefoonapp met Chromecast (`mobile/`)
 
 Naast de TV-app bevat dit project een app voor Android-telefoons en -tablets
-(`com.xiappdesign.family7.mobile`). Die deelt de complete datalaag met de TV-app (zie
+(`nl.family7.mobile`). Die deelt de complete datalaag met de TV-app (zie
 *Projectindeling*), dus inloggen, de catalogus, Mijn lijst en de live- en
 on-demandstreams werken precies hetzelfde.
 
@@ -200,9 +194,9 @@ on-demandstreams werken precies hetzelfde.
 
 | Module | Inhoud |
 |---|---|
-| `core/` | Gedeelde datalaag (`com.xiappdesign.family7.core.data`): HTTP-client, sessie, catalogus, Mijn lijst, live, Streampartner-uitpakker, caches, netwerkmonitor. Met unit-tests. |
-| `app/` | De Android TV-app (`com.xiappdesign.family7.tv`), Compose for TV. |
-| `mobile/` | De telefoonapp (`com.xiappdesign.family7.mobile`), Compose Material 3 + Google Cast. |
+| `core/` | Gedeelde datalaag (`nl.family7.core.data`): HTTP-client, sessie, catalogus, Mijn lijst, live, Streampartner-uitpakker, caches, netwerkmonitor. Met unit-tests. |
+| `app/` | De Android TV-app (`nl.family7.tv`), Compose for TV. |
+| `mobile/` | De telefoonapp (`nl.family7.mobile`), Compose Material 3 + Google Cast. |
 | `brand/` | Logo, embleem, app-iconen, TV-banner en het geanimeerde splashscherm (gedeeld). |
 | `art/` | Brongrafiek van het logo en de scripts die er alle afbeeldingen van maken. |
 | `ios/` | De iOS-app (SwiftUI, AirPlay, Google Cast); zie `ios/README.md`. |
@@ -277,10 +271,10 @@ family7.nl leest, en gaan vanzelf mee naar beide apps.
    ```
 3. Start de app op via het Android TV startscherm of direct via:
    ```bash
-   adb shell am start -n com.xiappdesign.family7.tv/.MainActivity
+   adb shell am start -n nl.family7.tv/.MainActivity
    ```
 4. De telefoonapp gaat net zo, met `family7-mobile-v….apk` en
-   `adb shell am start -n com.xiappdesign.family7.mobile/.MainActivity`.
+   `adb shell am start -n nl.family7.mobile/.MainActivity`.
 
 ---
 

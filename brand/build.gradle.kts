@@ -7,7 +7,7 @@ plugins {
 // Het merk van beide apps: het logo, het embleem, de app-iconen en de TV-banner
 // (gemaakt door art/tools/build_brand_assets.py) en het geanimeerde splashscherm.
 android {
-    namespace = "com.xiappdesign.family7.brand"
+    namespace = "nl.family7.brand"
     compileSdk = 35
 
     defaultConfig {

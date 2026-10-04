@@ -6,7 +6,7 @@ plugins {
 // De datalaag die de TV-app en de telefoonapp delen: inloggen, de catalogus,
 // Mijn lijst, de livestream en het uitpakken van de Streampartner-speler.
 android {
-    namespace = "com.xiappdesign.family7.core"
+    namespace = "nl.family7.core"
     compileSdk = 35
 
     defaultConfig {
