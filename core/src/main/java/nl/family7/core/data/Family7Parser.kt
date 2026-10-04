@@ -158,12 +158,21 @@ object Family7Parser {
         if (slug.isBlank() || slug == "programmas") return null
 
         val img = card.selectFirst("img")
-        // Op de sliders staat de leesbare naam alleen in het title-attribuut van de afbeelding.
-        val title = card.selectFirst(".titleProgramme, .view-block_element-title, .title, h3, h4")?.text()?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?: img?.attr("title")?.trim()?.takeIf { it.isNotEmpty() }
-            ?: link.attr("title").trim().takeIf { it.isNotEmpty() }
-            ?: link.text().trim().takeIf { it.isNotEmpty() && it.length < 80 }
+        val badge = card.selectFirst("[class*=ribbon], .badge, .label")?.text()?.trim().orEmpty()
+        // Een label als "Nieuwe afleveringen" is nooit de titel, ook niet als het
+        // in een kop staat.
+        fun usable(text: String?) = text?.trim()?.takeIf { it.isNotEmpty() && !it.equals(badge, ignoreCase = true) }
+        fun heading(query: String) = card.select(query)
+            .filterNot { el -> el.className().contains("ribbon") || el.parents().any { it.className().contains("ribbon") } }
+            .firstNotNullOfOrNull { usable(it.text()) }
+
+        // Volgorde: de vaste titelklassen; dan het title-attribuut van de
+        // afbeelding (op de sliders staat de naam alleen daar); dan algemene koppen.
+        val title = heading(".titleProgramme, .view-block_element-title")
+            ?: usable(img?.attr("title"))
+            ?: heading(".title, h3, h4")
+            ?: usable(link.attr("title"))
+            ?: usable(link.text())?.takeIf { it.length < 80 }
             ?: titleFromSlug(slug)
 
         return ProgramItem(
@@ -171,7 +180,7 @@ object Family7Parser {
             slug = slug,
             title = title,
             thumbnailUrl = imageUrl(card),
-            badge = card.selectFirst("[class*=ribbon], .badge, .label")?.text()?.trim().orEmpty(),
+            badge = badge,
             url = absolute(href),
             nodeId = card.selectFirst("[data-node-id]")?.attr("data-node-id").orEmpty()
         )

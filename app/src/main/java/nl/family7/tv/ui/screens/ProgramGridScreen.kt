@@ -1,5 +1,6 @@
 package nl.family7.tv.ui.screens
 
+import nl.family7.tv.ui.components.TvFocusScrolling
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -125,19 +126,22 @@ fun ProgramGridScreen(
                 }
             }
 
-            else -> LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 220.dp),
-                contentPadding = PaddingValues(bottom = 32.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(programs) { item ->
-                    TVProgramCard(
-                        item = item,
-                        onClick = { onSelectProgram(item) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+            // Rustig verticaal scrollen: de gefocuste rij komt met titel in beeld, zonder verspringen.
+            else -> TvFocusScrolling(leading = 72.dp, trailing = 56.dp, slack = 16.dp) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 220.dp),
+                    contentPadding = PaddingValues(bottom = 32.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(programs) { item ->
+                        TVProgramCard(
+                            item = item,
+                            onClick = { onSelectProgram(item) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }

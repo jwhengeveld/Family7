@@ -144,15 +144,32 @@ enum Family7Parser {
         guard !slug.isEmpty, slug != "programmas" else { return nil }
         let img = card.one("img")
         let linkText = link.plainText
-        let title = card.one(".titleProgramme, .view-block_element-title, .title, h3, h4")?.plainText.nonEmpty
-            ?? img?.attribute("title").nonEmpty
-            ?? link.attribute("title").nonEmpty
-            ?? (linkText.count < 80 ? linkText.nonEmpty : nil)
+        let badge = card.one("[class*=ribbon], .badge, .label")?.plainText ?? ""
+        // Een label als "Nieuwe afleveringen" is nooit de titel, ook niet in een kop.
+        func usable(_ text: String?) -> String? {
+            guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty,
+                  text.caseInsensitiveCompare(badge) != .orderedSame else { return nil }
+            return text
+        }
+        func isRibbon(_ el: Element) -> Bool { ((try? el.className()) ?? "").contains("ribbon") }
+        func heading(_ query: String) -> String? {
+            card.all(query)
+                .filter { el in !isRibbon(el) && !el.parents().array().contains(where: isRibbon) }
+                .compactMap { usable($0.plainText) }
+                .first
+        }
+        // Volgorde: vaste titelklassen; dan het title-attribuut van de afbeelding
+        // (op de sliders staat de naam alleen daar); dan algemene koppen.
+        let title = heading(".titleProgramme, .view-block_element-title")
+            ?? usable(img?.attribute("title"))
+            ?? heading(".title, h3, h4")
+            ?? usable(link.attribute("title"))
+            ?? (linkText.count < 80 ? usable(linkText) : nil)
             ?? Family7URL.titleFromSlug(slug)
         return ProgramItem(
             id: href, slug: slug, title: title,
             thumbnailURL: imageURL(card),
-            badge: card.one("[class*=ribbon], .badge, .label")?.plainText ?? "",
+            badge: badge,
             url: Family7URL.absolute(href),
             nodeId: card.one("[data-node-id]")?.attribute("data-node-id") ?? ""
         )

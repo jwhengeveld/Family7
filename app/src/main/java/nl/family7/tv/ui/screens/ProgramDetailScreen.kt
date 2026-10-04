@@ -1,5 +1,6 @@
 package nl.family7.tv.ui.screens
 
+import nl.family7.tv.ui.components.TvFocusScrolling
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -104,148 +105,154 @@ fun ProgramDetailScreen(
         } else if (programDetail != null) {
             val detail = programDetail!!
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 48.dp)
-            ) {
-                // Program Header Hero
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(320.dp)
-                    ) {
-                        AsyncImage(
-                            model = detail.posterUrl.ifEmpty { programItem.thumbnailUrl },
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-
-                        // Dual Gradients
+            // Rustig verticaal scrollen: de gefocuste rij komt met titel in beeld, zonder verspringen.
+            TvFocusScrolling(leading = 72.dp, trailing = 56.dp, slack = 16.dp) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 48.dp)
+                ) {
+                    // Program Header Hero
+                    item {
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            Family7BlueDark.copy(alpha = 0.95f),
-                                            Family7BlueDark.copy(alpha = 0.65f),
-                                            Color.Transparent
+                                .fillMaxWidth()
+                                .height(320.dp)
+                        ) {
+                            AsyncImage(
+                                model = detail.posterUrl.ifEmpty { programItem.thumbnailUrl },
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            // Dual Gradients
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            colors = listOf(
+                                                Family7BlueDark.copy(alpha = 0.95f),
+                                                Family7BlueDark.copy(alpha = 0.65f),
+                                                Color.Transparent
+                                            )
                                         )
                                     )
-                                )
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(Color.Transparent, Family7BlueDark),
-                                        startY = 180f
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(Color.Transparent, Family7BlueDark),
+                                            startY = 180f
+                                        )
                                     )
+                            )
+
+                            // Text & Buttons
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .padding(horizontal = 48.dp)
+                                    .fillMaxWidth(0.7f)
+                            ) {
+                                TVButton(
+                                    text = "TERUG",
+                                    onClick = onBack,
+                                    isPrimary = false,
+                                    leadingIcon = {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
+                                    }
                                 )
-                        )
 
-                        // Text & Buttons
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(horizontal = 48.dp)
-                                .fillMaxWidth(0.7f)
-                        ) {
-                            TVButton(
-                                text = "TERUG",
-                                onClick = onBack,
-                                isPrimary = false,
-                                leadingIcon = {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
-                                }
-                            )
+                                Spacer(modifier = Modifier.height(12.dp))
 
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Text(
-                                text = detail.title,
-                                color = TextPrimary,
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            if (detail.description.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = detail.description,
-                                    color = TextSecondary,
-                                    fontSize = 14.sp,
-                                    maxLines = 3,
-                                    lineHeight = 20.sp
+                                    text = detail.title,
+                                    color = TextPrimary,
+                                    fontSize = 32.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
-                            }
 
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                val firstEpisode = detail.seasons.firstOrNull()?.episodes?.firstOrNull()
-                                if (firstEpisode != null) {
-                                    TVButton(
-                                        text = if (firstEpisode.episodeNumber.isBlank()) "AFSPELEN" else "AFSPELEN (Afl. ${firstEpisode.episodeNumber})",
-                                        onClick = { onPlayEpisode(firstEpisode, detail) },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
-                                        }
+                                if (detail.description.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = detail.description,
+                                        color = TextSecondary,
+                                        fontSize = 14.sp,
+                                        maxLines = 3,
+                                        lineHeight = 20.sp
                                     )
                                 }
 
-                                // De site kent de lijststatus; na een wijziging telt
-                                // de status die deze app zojuist heeft doorgegeven.
-                                val inList = pendingInList ?: (isInMyList || detail.isInMyList)
-                                if (detail.nodeId.isNotEmpty()) {
-                                    TVButton(
-                                        text = if (inList) "IN MIJN LIJST" else "MIJN LIJST",
-                                        onClick = {
-                                            pendingInList = !inList
-                                            onToggleMyList(detail, !inList)
-                                        },
-                                        isPrimary = false,
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = if (inList) Icons.Default.Check else Icons.Default.Add,
-                                                contentDescription = null,
-                                                tint = Color.White
-                                            )
-                                        }
-                                    )
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    val firstEpisode = detail.seasons.firstOrNull()?.episodes?.firstOrNull()
+                                    if (firstEpisode != null) {
+                                        TVButton(
+                                            text = if (firstEpisode.episodeNumber.isBlank()) "AFSPELEN" else "AFSPELEN (Afl. ${firstEpisode.episodeNumber})",
+                                            onClick = { onPlayEpisode(firstEpisode, detail) },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
+                                            }
+                                        )
+                                    }
+
+                                    // De site kent de lijststatus; na een wijziging telt
+                                    // de status die deze app zojuist heeft doorgegeven.
+                                    val inList = pendingInList ?: (isInMyList || detail.isInMyList)
+                                    if (detail.nodeId.isNotEmpty()) {
+                                        TVButton(
+                                            text = if (inList) "IN MIJN LIJST" else "MIJN LIJST",
+                                            onClick = {
+                                                pendingInList = !inList
+                                                onToggleMyList(detail, !inList)
+                                            },
+                                            isPrimary = false,
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = if (inList) Icons.Default.Check else Icons.Default.Add,
+                                                    contentDescription = null,
+                                                    tint = Color.White
+                                                )
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                // Episodes Rows per Season
-                items(detail.seasons) { season ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp)
-                    ) {
-                        Text(
-                            text = season.title,
-                            color = TextPrimary,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 48.dp, bottom = 8.dp)
-                        )
-
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 42.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    // Episodes Rows per Season
+                    items(detail.seasons) { season ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp)
                         ) {
-                            items(season.episodes) { episode ->
-                                TVEpisodeCard(
-                                    episode = episode,
-                                    onClick = { onPlayEpisode(episode, detail) }
-                                )
+                            Text(
+                                text = season.title,
+                                color = TextPrimary,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(start = 48.dp, bottom = 8.dp)
+                            )
+
+                            // Rustig scrollen: binnen beeld beweegt de rij niet, aan de rand steeds even ver.
+                            TvFocusScrolling(leading = 56.dp, trailing = 56.dp) {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 42.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    items(season.episodes) { episode ->
+                                        TVEpisodeCard(
+                                            episode = episode,
+                                            onClick = { onPlayEpisode(episode, detail) }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

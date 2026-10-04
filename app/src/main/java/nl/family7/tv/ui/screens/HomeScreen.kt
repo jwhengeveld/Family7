@@ -1,5 +1,6 @@
 package nl.family7.tv.ui.screens
 
+import nl.family7.tv.ui.components.TvFocusScrolling
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -183,41 +184,44 @@ fun HomeScreen(
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 48.dp)
-                ) {
-                    // Featured Banner
-                    item {
-                        if (featuredProgram != null) {
-                            HeroBanner(
-                                program = featuredProgram!!,
-                                onWatchClick = { onSelectProgram(featuredProgram!!) },
-                                onLiveClick = onNavigateToLive
-                            )
-                        }
-                    }
-
-                    // Mijn lijst bovenaan, zodat opgeslagen programma's direct in beeld staan
-                    if (myList.isNotEmpty()) {
+                // Rustig verticaal scrollen: de gefocuste rij komt met titel in beeld, zonder verspringen.
+                TvFocusScrolling(leading = 72.dp, trailing = 56.dp, slack = 16.dp) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 48.dp)
+                    ) {
+                        // Featured Banner
                         item {
+                            if (featuredProgram != null) {
+                                HeroBanner(
+                                    program = featuredProgram!!,
+                                    onWatchClick = { onSelectProgram(featuredProgram!!) },
+                                    onLiveClick = onNavigateToLive
+                                )
+                            }
+                        }
+
+                        // Mijn lijst bovenaan, zodat opgeslagen programma's direct in beeld staan
+                        if (myList.isNotEmpty()) {
+                            item {
+                                CategorySwimlane(
+                                    row = CategoryRow(
+                                        id = "mijn_lijst",
+                                        title = "Mijn lijst",
+                                        items = myList
+                                    ),
+                                    onProgramClick = onSelectProgram
+                                )
+                            }
+                        }
+
+                        // Category Rows
+                        items(categoryRows) { row ->
                             CategorySwimlane(
-                                row = CategoryRow(
-                                    id = "mijn_lijst",
-                                    title = "Mijn lijst",
-                                    items = myList
-                                ),
+                                row = row,
                                 onProgramClick = onSelectProgram
                             )
                         }
-                    }
-
-                    // Category Rows
-                    items(categoryRows) { row ->
-                        CategorySwimlane(
-                            row = row,
-                            onProgramClick = onSelectProgram
-                        )
                     }
                 }
             }
@@ -461,15 +465,18 @@ fun CategorySwimlane(
             modifier = Modifier.padding(start = 36.dp, bottom = 8.dp)
         )
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 28.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(row.items) { item ->
-                TVProgramCard(
-                    item = item,
-                    onClick = { onProgramClick(item) }
-                )
+        // Rustig scrollen: binnen beeld beweegt de rij niet, aan de rand steeds even ver.
+        TvFocusScrolling(leading = 48.dp, trailing = 48.dp) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 28.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(row.items) { item ->
+                    TVProgramCard(
+                        item = item,
+                        onClick = { onProgramClick(item) }
+                    )
+                }
             }
         }
     }

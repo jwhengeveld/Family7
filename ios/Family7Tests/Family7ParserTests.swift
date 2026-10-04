@@ -58,6 +58,19 @@ final class Family7ParserTests: XCTestCase {
         XCTAssertEqual(images["c"], "https://www.family7.nl/c.jpg")
     }
 
+    func testLabelIsNooitDeTitel() throws {
+        let html = """
+        <div class="slider-default_element"><a href="/plus/programmas/fearless"><img src="/f.jpg" title="Fearless"></a>
+          <h3 class="ribbon-ribbon">Nieuwe afleveringen</h3></div>
+        <div class="slider-default_element"><a href="/plus/programmas/x"><img src="/x.jpg"></a>
+          <div class="ribbon"><h3>Nieuw</h3></div><h4>Echte titel</h4></div>
+        """
+        let programs = Dictionary(uniqueKeysWithValues: Family7Parser.programCards(try doc(html)).map { ($0.slug, $0) })
+        XCTAssertEqual(programs["fearless"]?.title, "Fearless")
+        XCTAssertEqual(programs["fearless"]?.badge, "Nieuwe afleveringen")
+        XCTAssertEqual(programs["x"]?.title, "Echte titel")
+    }
+
     // MARK: startpagina
 
     func testStartpagina() throws {

@@ -67,6 +67,21 @@ class Family7ParserTest {
         assertEquals("https://www.family7.nl/c.jpg", images["c"])
     }
 
+    @Test
+    fun `een label als Nieuwe afleveringen is nooit de titel`() {
+        val html = """
+            <div class="slider-default_element"><a href="/plus/programmas/fearless"><img src="/f.jpg" title="Fearless"></a>
+              <h3 class="ribbon-ribbon">Nieuwe afleveringen</h3></div>
+            <div class="slider-default_element"><a href="/plus/programmas/x"><img src="/x.jpg"></a>
+              <div class="ribbon"><h3>Nieuw</h3></div><h4>Echte titel</h4></div>
+        """.trimIndent()
+        val programs = Family7Parser.programCards(doc(html)).associate { it.slug to it }
+
+        assertEquals("Fearless", programs["fearless"]!!.title)
+        assertEquals("Nieuwe afleveringen", programs["fearless"]!!.badge)
+        assertEquals("Echte titel", programs["x"]!!.title)
+    }
+
     // -------------------------------------------------------- startpagina
 
     @Test

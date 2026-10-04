@@ -1,5 +1,6 @@
 package nl.family7.tv.ui.screens
 
+import nl.family7.tv.ui.components.TvFocusScrolling
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -147,20 +148,23 @@ fun SearchScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Quick Filters & Alphabet Row
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            items(quickFilters) { filter ->
-                val isSelected = selectedFilter == filter
-                TVButton(
-                    text = filter,
-                    onClick = {
-                        selectedFilter = filter
-                        applyFilter(filter, searchQuery)
-                    },
-                    isPrimary = isSelected
-                )
+        // Rustig scrollen: binnen beeld beweegt de rij niet, aan de rand steeds even ver.
+        TvFocusScrolling(leading = 40.dp, trailing = 40.dp) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(quickFilters) { filter ->
+                    val isSelected = selectedFilter == filter
+                    TVButton(
+                        text = filter,
+                        onClick = {
+                            selectedFilter = filter
+                            applyFilter(filter, searchQuery)
+                        },
+                        isPrimary = isSelected
+                    )
+                }
             }
         }
 
@@ -210,19 +214,22 @@ fun SearchScreen(
                 }
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 220.dp),
-                contentPadding = PaddingValues(bottom = 32.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(displayedResults) { item ->
-                    TVProgramCard(
-                        item = item,
-                        onClick = { onSelectProgram(item) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+            // Rustig verticaal scrollen: de gefocuste rij komt met titel in beeld, zonder verspringen.
+            TvFocusScrolling(leading = 72.dp, trailing = 56.dp, slack = 16.dp) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 220.dp),
+                    contentPadding = PaddingValues(bottom = 32.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(displayedResults) { item ->
+                        TVProgramCard(
+                            item = item,
+                            onClick = { onSelectProgram(item) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
