@@ -55,6 +55,23 @@ dezelfde manier van slim laden.
 - **HTTP met herkansing**: twee extra pogingen bij een netwerkfout, en een
   bovengrens per verzoek.
 
+### De site is de bron van waarheid
+
+De app heeft alleen family7.nl nodig: geen eigen server, geen configuratie op
+afstand, geen GitHub. Alle caching is lokaal en dient alleen om meteen iets te
+tonen terwijl de verse versie binnenkomt.
+
+- Programmapagina's (met **alle seizoenen**, via het seizoen-eindpunt van de
+  site), overzichten en Mijn lijst worden bij elk bezoek vers opgehaald.
+- `Family7Parser` heeft per gegeven vangnetten die niet op class-namen leunen,
+  getest op echte pagina's en bewust verbouwde versies (`Family7Tests/Fixtures`).
+- Een eenmalig verdacht magere lijst vervangt de vorige niet; geeft de site bij
+  de volgende keer hetzelfde, dan volgt de app de site.
+- Een verlopen sessie (anonieme pagina of inlogpagina) wordt herkend; de app
+  laat Family7 de sessie bevestigen en vraagt zo nodig opnieuw in te loggen.
+- `PageFetcher` laat gelijktijdige verzoeken één download delen; stream-adressen
+  blijven bruikbaar zo lang hun token geldig is.
+
 ### Veiligheid
 
 Het wachtwoord wordt nergens bewaard. De aanmeldsessie (de cookies van

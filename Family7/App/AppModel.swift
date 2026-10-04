@@ -26,6 +26,8 @@ final class AppModel {
     private(set) var loginError: String?
     private(set) var myList: [ProgramItem] = []
     private(set) var myListLoaded = false
+    @ObservationIgnored private var sessionObserver: NSObjectProtocol?
+    @ObservationIgnored private var checkingSession = false
     /// Het spelerscherm wordt getoond (als fullScreenCover).
     var showPlayer = false
     /// Het gekozen tabblad en de navigatie op het startscherm, voor deep links.
@@ -36,6 +38,20 @@ final class AppModel {
         playback = PlaybackManager(video: video, live: live)
         // De catalogus van de vorige keer klaarzetten voor het eerste scherm.
         catalog.restoreSnapshots()
+
+        // Gaf Family7 ergens een anonieme pagina of de inlogpagina terug, dan
+        // laten we Family7 de sessie bevestigen; alleen als die echt voorbij
+        // is, gaat de gebruiker naar het aanmeldscherm.
+        sessionObserver = NotificationCenter.default.addObserver(
+            forName: .family7SessionExpired, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.authState == .loggedIn, !self.checkingSession else { return }
+                self.checkingSession = true
+                if await !self.auth.confirmSession() { self.signedOut() }
+                self.checkingSession = false
+            }
+        }
 
         if auth.hasStoredSession {
             // Meteen naar binnen; Family7 bevestigt de sessie op de achtergrond.

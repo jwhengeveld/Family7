@@ -31,7 +31,7 @@ struct CategoryRow: Codable, Hashable, Identifiable, Sendable {
     var items: [ProgramItem] = []
 }
 
-struct EpisodeItem: Hashable, Identifiable, Sendable {
+struct EpisodeItem: Codable, Hashable, Identifiable, Sendable {
     var id: String
     var episodeNumber: String
     var title: String
@@ -52,13 +52,13 @@ struct EpisodeItem: Hashable, Identifiable, Sendable {
     }
 }
 
-struct SeasonInfo: Hashable, Sendable {
+struct SeasonInfo: Codable, Hashable, Sendable {
     var seasonNumber: String
     var title: String
     var episodes: [EpisodeItem]
 }
 
-struct ProgramDetail: Hashable, Sendable {
+struct ProgramDetail: Codable, Hashable, Sendable {
     var slug: String
     var title: String
     var posterURL: String

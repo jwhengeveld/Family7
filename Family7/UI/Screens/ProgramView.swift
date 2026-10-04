@@ -6,6 +6,7 @@ struct ProgramView: View {
 
     @Environment(AppModel.self) private var model
     @State private var loader: Loader<ProgramDetail>?
+    @State private var selectedSeason: String?
 
     var body: some View {
         ScrollView {
@@ -105,8 +106,28 @@ struct ProgramView: View {
         }
         .padding(16)
 
-        ForEach(detail.seasons, id: \.seasonNumber) { season in
-            Text(season.title).font(.headline).padding(.horizontal, 16).padding(.top, 12)
+        // Eén seizoen tegelijk, met een keuze erboven: series als "Bijbelse
+        // karakters" hebben dertien seizoenen.
+        let shown = detail.seasons.first { $0.seasonNumber == selectedSeason } ?? detail.seasons.first
+        if detail.seasons.count > 1 {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(detail.seasons, id: \.seasonNumber) { season in
+                        let isOn = season.seasonNumber == shown?.seasonNumber
+                        Button(season.title) { selectedSeason = season.seasonNumber }
+                            .font(.subheadline.weight(isOn ? .semibold : .regular))
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .background(isOn ? Color.family7Red : Color.family7Surface, in: Capsule())
+                            .foregroundStyle(.white)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .padding(.top, 8)
+        }
+        ForEach(shown.map { [$0] } ?? [], id: \.seasonNumber) { season in
+            Text(detail.seasons.count > 1 ? "\(season.title) · \(season.episodes.count) afleveringen" : season.title)
+                .font(.headline).padding(.horizontal, 16).padding(.top, 12)
             ForEach(season.episodes) { episode in
                 Button { model.play(.episode(episode, detail)) } label: { EpisodeRow(episode: episode) }
                     .buttonStyle(.plain)

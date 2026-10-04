@@ -84,8 +84,11 @@ final class Family7HTTP: @unchecked Sendable {
     }
 
     /// Haalt een pagina op. `referer` standaard de voorpagina van Family7.
-    func get(_ url: URL, referer: String = "https://www.family7.nl/", headers: [String: String] = [:]) async throws -> (Data, HTTPURLResponse) {
+    func get(_ url: URL, referer: String = "https://www.family7.nl/", headers: [String: String] = [:],
+             fresh: Bool = false) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
+        // Vers betekent vers: geen antwoord uit een cache.
+        if fresh { request.cachePolicy = .reloadIgnoringLocalCacheData }
         request.setValue(referer, forHTTPHeaderField: "Referer")
         headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
 

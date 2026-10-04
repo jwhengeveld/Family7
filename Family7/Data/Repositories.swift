@@ -1,8 +1,12 @@
 import Foundation
 import SwiftSoup
 
-// Ports van de repositories in core/ van de Android-apps. Dezelfde selectors,
-// dezelfde terugvallen; afwijkingen staan erbij.
+// Ports van de repositories in core/ van de Android-apps. Het lezen van de
+// pagina's zit in Family7Parser (met vangnetten voor een verbouwde site), het
+// ophalen in PageFetcher (samenvoegen, korte cache, sessieherkenning).
+//
+// De site is de bron van waarheid: alle caching is lokaal en dient alleen om
+// meteen iets te tonen terwijl de verse versie van family7.nl binnenkomt.
 
 // MARK: - Aanmelden
 
@@ -81,7 +85,7 @@ final class AuthRepository: @unchecked Sendable {
 // MARK: - Catalogus
 
 final class CatalogRepository: @unchecked Sendable {
-    private let http = Family7HTTP.shared
+    private let pages = PageFetcher.shared
     private let snapshots = SnapshotStore()
     private let defaults = UserDefaults.standard
 
@@ -89,17 +93,12 @@ final class CatalogRepository: @unchecked Sendable {
     let azCache = TimedCache<[ProgramItem]>(ttl: catalogTTL)
     let kidsCache = TimedCache<[ProgramItem]>(ttl: catalogTTL)
 
-    private static let plusHome = URL(string: "https://www.family7.nl/plus")!
-    private static let plusNew = URL(string: "https://www.family7.nl/plus/nieuw")!
+    private static let plusHome = "https://www.family7.nl/plus"
+    private static let plusNew = "https://www.family7.nl/plus/nieuw"
     private static let plusAZ = "https://www.family7.nl/plus/a-z?title=All"
     private static let kidsURLKey = "family7.kidsURL"
-    private static let suppressedRowTitles: Set<String> = ["mijn lijst", "mijn lijstje"]
-    private static let kidsHints = ["kinder", "kids", "jeugd"]
     private static let maxPages = 20
-    private static let cardSelector = [
-        ".slider-default_element", ".more-series-on-demand_element",
-        ".view-block_element-wrapper", ".view-block_element", ".views-row"
-    ].joined(separator: ", ")
+    private static let pageConcurrency = 4
 
     /// De catalogus van de vorige sessie in de caches zetten, zonder dat die als vers telt.
     func restoreSnapshots() {
@@ -112,6 +111,20 @@ final class CatalogRepository: @unchecked Sendable {
     func clear() {
         homeCache.clear(); azCache.clear(); kidsCache.clear()
         snapshots.clear()
+        Task { await pages.clear() }
+    }
+
+    /// Bewaart een nieuwe uitkomst, tenzij hij verdacht mager is en de site dat
+    /// nog niet bevestigd heeft: dan blijft de vorige (niet als vers) staan.
+    private func keepBest<T: Codable>(_ cache: TimedCache<[T]>, _ fresh: [T], snapshot name: String,
+                                      size: ([T]) -> Int = { $0.count }) -> [T] {
+        if let previous = cache.snapshot,
+           !PlausibilityGate.shared.accept(name, previous: size(previous), new: size(fresh)) {
+            return previous
+        }
+        cache.put(fresh)
+        if size(fresh) > 0 { snapshots.write(fresh, name) }
+        return fresh
     }
 
     // MARK: startpagina
@@ -120,76 +133,33 @@ final class CatalogRepository: @unchecked Sendable {
         if !force, let fresh = homeCache.fresh { return fresh }
 
         // De startpagina en "Nieuw toegevoegd" tegelijk ophalen.
-        async let homeDoc = http.document(Self.plusHome)
-        async let newDoc: Document? = try? http.document(Self.plusNew)
+        async let homeDoc = pages.document(Self.plusHome, fresh: force)
+        async let newDoc: Document? = try? pages.document(Self.plusNew, fresh: force)
         let doc = try await homeDoc
-        let newest = await newDoc.map(parseCards) ?? []
+        let newest = await newDoc.map(Family7Parser.programCards) ?? []
 
         var rows: [CategoryRow] = []
-        if let hero = parseHero(doc) {
+        if let hero = Family7Parser.hero(doc) {
             rows.append(CategoryRow(id: "uitgelicht", title: "Uitgelicht", items: [hero]))
         }
         if !newest.isEmpty {
-            rows.append(CategoryRow(id: "nieuw_toegevoegd", title: "Nieuw toegevoegd",
-                                    moreURL: Self.plusNew.absoluteString, items: unique(newest)))
+            rows.append(CategoryRow(id: "nieuw_toegevoegd", title: "Nieuw toegevoegd", moreURL: Self.plusNew, items: newest))
         }
-        for row in parseHomeRows(doc) where !rows.contains(where: { $0.id == row.id }) {
-            rows.append(row)
+        let homeRows = Family7Parser.homeRows(doc)
+        for row in homeRows where !rows.contains(where: { $0.id == row.id }) { rows.append(row) }
+        if let kids = homeRows.first(where: { row in
+            row.moreURL.contains("/plus/special/") &&
+                Family7Parser.kidsHints.contains { (row.title + row.moreURL).lowercased().contains($0) }
+        }) {
+            defaults.set(kids.moreURL, forKey: Self.kidsURLKey)
         }
 
-        // Terugval als de opmaak van de site verandert: dan tenminste alles.
+        // Terugval als de rijen niet meer te lezen zijn: dan tenminste alles.
         if !rows.contains(where: { !$0.items.isEmpty && $0.id != "uitgelicht" }) {
-            let all = try await allPages(Self.plusAZ)
+            let all = try await allPages(Self.plusAZ, fresh: force)
             if !all.isEmpty { rows.append(CategoryRow(id: "alle", title: "Alle programma's", items: all)) }
         }
-
-        homeCache.put(rows)
-        // Een lege uitkomst mag de laatst goede catalogus niet overschrijven.
-        if rows.contains(where: { !$0.items.isEmpty }) { snapshots.write(rows, "home") }
-        return rows
-    }
-
-    private func parseHero(_ doc: Document) -> ProgramItem? {
-        guard let header = doc.one("section.on-demand-header") else { return nil }
-        let href = header.one("a[href*='/plus/programmas/']")?.attribute("href") ?? ""
-        guard !href.isEmpty else { return nil }
-
-        // De achtergrondafbeelding staat in een inline <style>-regel.
-        let style = header.all("style").map { (try? $0.html()) ?? "" }.joined()
-        var background = ""
-        if let range = style.range(of: #"url\('([^']+)'\)"#, options: .regularExpression) {
-            background = String(style[range]).replacingOccurrences(of: "url('", with: "").replacingOccurrences(of: "')", with: "")
-        }
-        let slug = Family7URL.slug(href)
-        return ProgramItem(
-            id: href, slug: slug, title: Family7URL.titleFromSlug(slug),
-            thumbnailURL: Family7URL.absolute(background), url: Family7URL.absolute(href),
-            description: header.one(".introduction")?.plainText ?? "",
-            nodeId: header.one("[data-node-id]")?.attribute("data-node-id") ?? ""
-        )
-    }
-
-    private func parseHomeRows(_ doc: Document) -> [CategoryRow] {
-        var rows: [CategoryRow] = []
-        for block in doc.all("section.on-demand_home-section, .block-view") {
-            let title = block.one(".block-view-header_element-title, h3, h2")?.plainText ?? ""
-            if title.isEmpty || Self.suppressedRowTitles.contains(title.lowercased()) { continue }
-
-            let items = unique(block.all(Self.cardSelector).compactMap(parseCard))
-            if items.isEmpty { continue }
-
-            let id = title.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "_", options: .regularExpression)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
-            if rows.contains(where: { $0.id == id }) { continue }
-
-            let more = Family7URL.absolute(block.one(".more-link a[href], a[href*='/plus/special/']")?.attribute("href") ?? "")
-            if more.contains("/plus/special/"),
-               Self.kidsHints.contains(where: { (title + more).lowercased().contains($0) }) {
-                defaults.set(more, forKey: Self.kidsURLKey)
-            }
-            rows.append(CategoryRow(id: id, title: title, moreURL: more, items: items))
-        }
-        return rows
+        return keepBest(homeCache, rows, snapshot: "home") { $0.reduce(0) { $0 + $1.items.count } }
     }
 
     // MARK: overzichten
@@ -199,17 +169,15 @@ final class CatalogRepository: @unchecked Sendable {
         guard let url = await resolveKidsURL() else {
             throw Family7Error("Geen kidssectie gevonden. Controleer of u bent ingelogd met een Family7 Plus-account.")
         }
-        let items = try await allPages(url)
+        let items = keepBest(kidsCache, try await allPages(url, fresh: force), snapshot: "kids")
         guard !items.isEmpty else { throw Family7Error("Er zijn nu geen kinderprogramma's beschikbaar.") }
-        kidsCache.put(items)
-        snapshots.write(items, "kids")
         return items
     }
 
     private func resolveKidsURL() async -> String? {
-        if let doc = try? await http.document(Self.plusHome),
+        if let doc = try? await pages.document(Self.plusHome),
            let href = doc.all("a[href*='/plus/special/']").map({ $0.attribute("href") }).first(where: { href in
-               Self.kidsHints.contains { Family7URL.decodedSlug(href).lowercased().contains($0) }
+               Family7Parser.kidsHints.contains { Family7URL.decodedSlug(href).lowercased().contains($0) }
            }) {
             let url = Family7URL.absolute(href)
             defaults.set(url, forKey: Self.kidsURLKey)
@@ -220,175 +188,180 @@ final class CatalogRepository: @unchecked Sendable {
 
     func allPrograms(force: Bool = false) async throws -> [ProgramItem] {
         if !force, let fresh = azCache.fresh { return fresh }
-        let items = try await allPages(Self.plusAZ)
-        if !items.isEmpty {
-            azCache.put(items)
-            snapshots.write(items, "az")
-        }
-        return items
+        return keepBest(azCache, try await allPages(Self.plusAZ, fresh: force), snapshot: "az")
     }
 
+    /// Een overzicht wordt bij elk bezoek opnieuw bij de site opgehaald.
     func programs(from url: String) async throws -> [ProgramItem] {
-        try await allPages(url)
+        try await allPages(url, fresh: true)
     }
 
-    // MARK: parsen en ophalen
-
-    private func parseCards(_ doc: Document) -> [ProgramItem] {
-        unique(doc.all(Self.cardSelector).compactMap(parseCard))
-    }
-
-    private func parseCard(_ card: Element) -> ProgramItem? {
-        guard let link = card.one("a[href*='/plus/programmas/'], a[href*='/programmas/']") else { return nil }
-        let href = link.attribute("href")
-        guard !href.isEmpty, !href.hasPrefix("#") else { return nil }
-        let image = card.one("img")
-        // Op de sliders staat de leesbare naam alleen in het title-attribuut van de afbeelding.
-        let title = card.one(".titleProgramme, .view-block_element-title, .title, h4")?.plainText.nonEmpty
-            ?? image?.attribute("title").nonEmpty
-            ?? Family7URL.titleFromSlug(Family7URL.slug(href))
-        return ProgramItem(
-            id: href, slug: Family7URL.slug(href), title: title,
-            thumbnailURL: Family7URL.absolute(image?.attribute("src") ?? ""),
-            badge: card.one("[class*=ribbon], .badge, .label")?.plainText ?? "",
-            url: Family7URL.absolute(href),
-            nodeId: card.one("[data-node-id]")?.attribute("data-node-id") ?? ""
-        )
-    }
-
-    /// Een overzichtspagina met al zijn vervolgpagina's.
-    private func allPages(_ start: String) async throws -> [ProgramItem] {
+    /// Een overzichtspagina met al zijn vervolgpagina's: tegelijk als de pager
+    /// de laatste pagina noemt, anders één voor één tot er niets nieuws bijkomt.
+    private func allPages(_ start: String, fresh: Bool) async throws -> [ProgramItem] {
+        let first = try await pages.document(start, fresh: fresh)
         var collected: [ProgramItem] = []
         var seen = Set<String>()
-        for page in 0..<Self.maxPages {
-            let address = page == 0 ? start : start + (start.contains("?") ? "&" : "?") + "page=\(page)"
-            guard let url = URL(string: address) else { break }
-            let doc: Document
-            do { doc = try await http.document(url) } catch {
-                if page == 0 { throw error } else { break }
-            }
+        func add(_ doc: Document) -> Int {
             let before = collected.count
-            for item in parseCards(doc) where seen.insert(item.slug).inserted { collected.append(item) }
-            let hasMore = !doc.all(".pager__item--next a, li.pager-next a, a[rel=next]").isEmpty
-            if collected.count == before || !hasMore { break }
+            for item in Family7Parser.programCards(doc) where seen.insert(item.slug).inserted { collected.append(item) }
+            return collected.count - before
+        }
+        _ = add(first)
+        guard Family7Parser.hasNextPage(first) else { return collected }
+
+        func url(_ page: Int) -> String { start + (start.contains("?") ? "&" : "?") + "page=\(page)" }
+
+        if let last = Family7Parser.lastPageNumber(first) {
+            let numbers = Array(1...min(last, Self.maxPages - 1))
+            var docs: [Int: Document] = [:]
+            for chunk in stride(from: 0, to: numbers.count, by: Self.pageConcurrency) {
+                try await withThrowingTaskGroup(of: (Int, Document?).self) { group in
+                    for page in numbers[chunk..<min(chunk + Self.pageConcurrency, numbers.count)] {
+                        group.addTask { [pages] in (page, try? await pages.document(url(page), fresh: fresh)) }
+                    }
+                    for try await (page, doc) in group { docs[page] = doc }
+                }
+            }
+            for page in numbers { if let doc = docs[page] { _ = add(doc) } }
+            return collected
+        }
+
+        var doc = first
+        for page in 1..<Self.maxPages where Family7Parser.hasNextPage(doc) {
+            guard let next = try? await pages.document(url(page), fresh: fresh) else { break }
+            doc = next
+            if add(next) == 0 { break }
         }
         return collected
-    }
-
-    private func unique(_ items: [ProgramItem]) -> [ProgramItem] {
-        var seen = Set<String>()
-        return items.filter { seen.insert($0.slug).inserted }
     }
 }
 
 // MARK: - Programma's en afleveringen
 
 final class VideoRepository: @unchecked Sendable {
-    private let http = Family7HTTP.shared
+    private let pages = PageFetcher.shared
+    private let snapshots = SnapshotStore()
     private let lock = NSLock()
     private var details: [String: ProgramDetail] = [:]
-    /// Kort onthouden stream-adressen, zodat een vooraf opgezocht adres meteen
-    /// afspeelt; kort, omdat het token van Streampartner verloopt.
     private var streams: [String: TimedCache<String>] = [:]
-    private static let streamTTL: TimeInterval = 2 * 60
+    /// Zoveel seizoenen tegelijk; series als "Bijbelse karakters" hebben er dertien.
+    private static let seasonConcurrency = 4
 
-    func cachedDetail(_ slug: String) -> ProgramDetail? { lock.withLock { details[slug] } }
-
-    func programDetail(_ slug: String) async throws -> ProgramDetail {
-        let address = slug.hasPrefix("http") ? slug : "https://www.family7.nl/plus/programmas/\(slug)"
-        guard let url = URL(string: address) else { throw Family7Error("Ongeldig programma-adres.") }
-        let doc = try await http.document(url)
-
-        let title = doc.one("meta[property=og:title]")?.attribute("content").nonEmpty
-            ?? ((try? doc.title()) ?? "").components(separatedBy: "|").first?.trimmingCharacters(in: .whitespaces).nonEmpty
-            ?? Family7URL.titleFromSlug(slug)
-        let poster = Family7URL.absolute(doc.one(".video-page-top-content img, .series-page-image img, .main-image img")?.attribute("src") ?? "")
-        let myListButton = doc.one(".process-to-my-series-list, [data-node-id]")
-        var seen = Set<String>()
-        let episodes = doc.all(".view-block_element-wrapper, .view-block_element")
-            .compactMap { parseEpisode($0, fallbackThumb: poster) }
-            .filter { seen.insert($0.videoSlug).inserted }
-
-        let seasonSelect = doc.one(".more-videos_season-select")
-        let selected = seasonSelect?.one("option[selected]")
-        let firstOption = seasonSelect?.one("option")
-        let seasonNumber = selected?.attribute("value").nonEmpty ?? firstOption?.attribute("value").nonEmpty ?? "1"
-        let seasonLabel = selected?.plainText.nonEmpty ?? firstOption?.plainText.nonEmpty ?? "Afleveringen"
-
-        let detail = ProgramDetail(
-            slug: slug, title: title, posterURL: poster,
-            description: doc.one(".introduction, .series-page-description, .field--name-body")?.plainText ?? "",
-            category: doc.one(".series-info")?.plainText ?? "",
-            seasons: episodes.isEmpty ? [] : [SeasonInfo(seasonNumber: seasonNumber, title: seasonLabel, episodes: episodes)],
-            nodeId: myListButton?.attribute("data-node-id") ?? "",
-            isInMyList: myListButton?.hasClass("added") ?? false
-        )
-        lock.withLock { details[slug] = detail }
+    /// Het laatst bekende programma: uit het geheugen, of van schijf uit een vorige sessie.
+    func cachedDetail(_ slug: String) -> ProgramDetail? {
+        if let detail = lock.withLock({ details[slug] }) { return detail }
+        guard let detail = snapshots.read(ProgramDetail.self, Self.key(slug)) else { return nil }
+        lock.withLock { details[slug] = details[slug] ?? detail }
         return detail
     }
 
-    /// Een afleveringskaart: nummer in .video-number, titel links en speelduur rechts in .video-title.
-    private func parseEpisode(_ card: Element, fallbackThumb: String) -> EpisodeItem? {
-        guard let link = card.one("a[href*='/video/']") else { return nil }
-        let href = link.attribute("href")
-        let slug = Family7URL.slug(href)
-        guard !slug.isEmpty else { return nil }
-        let titleBlock = card.one(".video-title")
-        let title = titleBlock?.one(".float-left")?.plainText.nonEmpty
-            ?? titleBlock?.ownText().trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
-            ?? card.one(".view-block_element-title")?.plainText.nonEmpty
-            ?? "Aflevering"
-        // Het adres van een aflevering heeft de vorm {seizoen}-{nummer}-{slug}.
-        let parts = slug.split(separator: "-")
-        let numberFromSlug = parts.count > 1 && parts[1].allSatisfy(\.isNumber) ? String(parts[1]) : ""
-        let thumb = Family7URL.absolute(card.one(".view-block_element-thumbnail > img")?.attribute("src") ?? "")
-        return EpisodeItem(
-            id: slug,
-            episodeNumber: card.one(".video-number")?.plainText.nonEmpty ?? numberFromSlug,
-            title: title,
-            description: card.one(".video-description")?.plainText ?? "",
-            duration: titleBlock?.one(".float-right")?.plainText ?? "",
-            thumbnailURL: thumb.isEmpty ? fallbackThumb : thumb,
-            videoSlug: slug,
-            videoURL: Family7URL.absolute(href)
-        )
+    /// De programmapagina met alle seizoenen. De pagina bevat alleen het
+    /// gekozen seizoen; de andere haalt de site (en dus ook de app) op via
+    /// /get-videos-by-season/{node}/{seizoen}, hier tegelijk en begrensd.
+    func programDetail(_ slug: String) async throws -> ProgramDetail {
+        let address = slug.hasPrefix("http") ? slug : "https://www.family7.nl/plus/programmas/\(slug)"
+        // Altijd van de site: nieuwe afleveringen moeten er meteen bij staan.
+        let doc = try await pages.document(address, fresh: true)
+        var detail = Family7Parser.programDetailBase(doc, slug: slug)
+        let onPage = Family7Parser.episodes(doc, fallbackThumb: detail.posterURL)
+        let options = Family7Parser.seasonOptions(doc)
+
+        if options.count <= 1 || detail.nodeId.isEmpty {
+            if !onPage.isEmpty {
+                detail.seasons = [SeasonInfo(seasonNumber: options.first?.number ?? "1",
+                                             title: options.first?.title ?? "Afleveringen", episodes: onPage)]
+            }
+        } else {
+            let shown = options.first(where: \.selected) ?? options[0]
+            let previous = cachedDetail(slug)
+            var loaded: [String: [EpisodeItem]] = [shown.number: onPage]
+            let others = options.filter { $0.number != shown.number || onPage.isEmpty }
+            for chunk in stride(from: 0, to: others.count, by: Self.seasonConcurrency) {
+                await withTaskGroup(of: (String, [EpisodeItem]?).self) { group in
+                    for option in others[chunk..<min(chunk + Self.seasonConcurrency, others.count)] {
+                        group.addTask { [self] in
+                            (option.number, try? await seasonEpisodes(detail.nodeId, option.number, fallback: detail.posterURL))
+                        }
+                    }
+                    for await (number, episodes) in group {
+                        // Een mislukt seizoen kost alleen dat seizoen.
+                        loaded[number] = episodes ?? previous?.seasons.first { $0.seasonNumber == number }?.episodes ?? []
+                    }
+                }
+            }
+            detail.seasons = options.compactMap { option in
+                let episodes = loaded[option.number] ?? []
+                return episodes.isEmpty ? nil : SeasonInfo(seasonNumber: option.number, title: option.title, episodes: episodes)
+            }
+        }
+
+        // Een eenmalig verdacht magere pagina vervangt geen goede versie; de
+        // site bevestigt of corrigeert dat bij de volgende keer.
+        let count = detail.seasons.reduce(0) { $0 + $1.episodes.count }
+        if let previous = cachedDetail(slug),
+           !PlausibilityGate.shared.accept("detail:\(slug)", previous: previous.seasons.reduce(0) { $0 + $1.episodes.count }, new: count) {
+            return previous
+        }
+        lock.withLock { details[slug] = detail }
+        if count > 0 { snapshots.write(detail, Self.key(slug)) }
+        return detail
     }
+
+    private func seasonEpisodes(_ nodeId: String, _ season: String, fallback: String) async throws -> [EpisodeItem] {
+        let page = try await pages.page("https://www.family7.nl/get-videos-by-season/\(nodeId)/\(season)", fresh: true)
+        guard let json = try JSONSerialization.jsonObject(with: Data(page.html.utf8)) as? [String: Any],
+              let html = json["renderedItems"] as? String else { return [] }
+        return Family7Parser.episodes(try SwiftSoup.parseBodyFragment(html, "https://www.family7.nl"), fallbackThumb: fallback)
+    }
+
+    private static func key(_ slug: String) -> String {
+        "detail_" + String(UInt(bitPattern: slug.utf8.reduce(5381) { ($0 << 5) &+ $0 &+ Int($1) }), radix: 16)
+    }
+
+    // MARK: streams
 
     /// Alvast opzoeken; een mislukking is hier geen fout.
     func prefetchStreamURL(_ videoSlug: String) async {
         _ = try? await streamURL(videoSlug)
     }
 
+    /// Het stream-adres, onthouden zo lang het token in het adres geldig is.
     func streamURL(_ videoSlug: String, forceFresh: Bool = false) async throws -> String {
-        let cache = lock.withLock {
-            if let existing = streams[videoSlug] { return existing }
-            let created = TimedCache<String>(ttl: Self.streamTTL)
-            streams[videoSlug] = created
-            return created
-        }
-        if !forceFresh, let fresh = cache.fresh { return fresh }
+        if !forceFresh, let cached = lock.withLock({ streams[videoSlug]?.fresh }) { return cached }
         let url = try await fetchStreamURL(videoSlug)
-        cache.put(url)
+        let lifetime = StreamURLLifetime.validFor(url)
+        lock.withLock {
+            if lifetime > 0 {
+                let cache = TimedCache<String>(ttl: lifetime)
+                cache.put(url)
+                streams[videoSlug] = cache
+            } else {
+                streams[videoSlug] = nil
+            }
+        }
         return url
     }
 
     private func fetchStreamURL(_ videoSlug: String) async throws -> String {
         let address = videoSlug.hasPrefix("http") ? videoSlug : "https://www.family7.nl/video/\(videoSlug)"
-        guard let url = URL(string: address) else { throw Family7Error("Ongeldig video-adres.") }
-        let (data, _) = try await http.get(url, referer: "https://www.family7.nl/plus")
-        let html = String(decoding: data, as: UTF8.self)
-        let doc = try SwiftSoup.parse(html, address)
+        let page = try await pages.page(address, fresh: true)
+        let doc = try SwiftSoup.parse(page.html, page.finalURL)
 
-        var player = doc.firstAttribute(".video-player--loader, .video-player--frame", "data-src")
-        if player.isEmpty { player = doc.firstAttribute("iframe[src*='player.php']", "src") }
-        if !player.isEmpty, let playerURL = URL(string: Family7URL.absolute(player)) {
-            let (playerData, _) = try await http.get(playerURL, referer: "https://www.family7.nl")
-            let stream = StreampartnerPlayer.streamURL(fromPlayerHTML: String(decoding: playerData, as: UTF8.self))
+        let player = Family7Parser.playerURL(doc, html: page.html)
+        if !player.isEmpty {
+            let playerPage = try await pages.page(player, referer: "https://www.family7.nl", fresh: true)
+            let stream = StreampartnerPlayer.streamURL(fromPlayerHTML: playerPage.html)
             if !stream.isEmpty { return stream }
         }
         // Terugval: het adres staat soms gewoon op de pagina zelf.
-        let direct = StreampartnerPlayer.firstM3u8(html)
+        let direct = StreampartnerPlayer.firstM3u8(page.html)
         if !direct.isEmpty { return direct }
+
+        try await pages.checkSession(doc)
+        if Family7Parser.isAnonymous(doc) {
+            throw Family7Error("Deze aflevering is alleen te bekijken als u bent ingelogd met Family7 Plus.")
+        }
         throw Family7Error("Kon geen afspeelbare videobron vinden voor deze aflevering.")
     }
 }
@@ -396,20 +369,18 @@ final class VideoRepository: @unchecked Sendable {
 // MARK: - Live
 
 final class LiveRepository: @unchecked Sendable {
-    private let http = Family7HTTP.shared
+    private let pages = PageFetcher.shared
     private let defaults = UserDefaults.standard
-    private static let livePage = URL(string: "https://www.family7.nl/plus/live")!
+    private static let livePage = "https://www.family7.nl/plus/live"
     private static let lastPlayerKey = "family7.live.lastPlayerURL"
     private static let lastStreamKey = "family7.live.lastStreamURL"
 
     /// Het programma van nu en het stream-adres. De laatst werkende speler- en
-    /// stream-adressen worden onthouden als noodgreep, omdat Streampartner
-    /// regelmatig van host wisselt.
+    /// stream-adressen worden lokaal onthouden als noodgreep, omdat
+    /// Streampartner regelmatig van host wisselt.
     func liveInfo() async throws -> LiveStreamInfo {
-        let (data, response) = try await http.get(Self.livePage, referer: "https://www.family7.nl/plus")
-        if response.statusCode == 401 || response.statusCode == 403 { throw UnauthorizedError() }
-        let html = String(decoding: data, as: UTF8.self)
-        let doc = try SwiftSoup.parse(html, Self.livePage.absoluteString)
+        let doc = try await pages.document(Self.livePage, maxAge: 15)
+        let html = (try? doc.outerHtml()) ?? ""
 
         let player = discoverPlayerURL(doc, html: html)
         if !player.isEmpty { defaults.set(player, forKey: Self.lastPlayerKey) }
@@ -424,30 +395,22 @@ final class LiveRepository: @unchecked Sendable {
             title: "Family7 Live TV",
             currentProgram: doc.joinedText(".tv-guide-teaser_title, .tv-guide-teaser h2, .tv-guide-teaser h3").nonEmpty ?? "Family7 Live Uitzending",
             timeRange: doc.joinedText(".tv-guide-teaser_time, .tv-guide-teaser--info-first p:nth-child(2)"),
-            imageURL: Family7URL.absolute(doc.firstAttribute(".tv-guide-teaser--image img", "src")),
+            imageURL: Family7Parser.imageURL(doc.one(".tv-guide-teaser--image") ?? doc).nonEmpty
+                ?? Family7URL.absolute(doc.firstAttribute(".tv-guide-teaser--image img", "src")),
             description: doc.joinedText(".tv-guide-teaser_description, .tv-guide-teaser--info-second p"),
             streamURL: stream
         )
     }
 
     private func discoverPlayerURL(_ doc: Document, html: String) -> String {
-        var candidates = [
-            doc.firstAttribute(".video-player--loader, .video-player--frame", "data-src"),
-            doc.firstAttribute("[data-src*='player']", "data-src"),
-            doc.firstAttribute("iframe[src*='player']", "src"),
-            doc.firstAttribute("iframe[src*='streampartner']", "src"),
-            doc.firstAttribute("iframe[src]", "src")
-        ]
-        if let range = html.range(of: #"https?://[^\s"'<>]*streampartner\.nl/[^\s"'<>]+"#, options: .regularExpression) {
-            candidates.append(String(html[range]))
-        }
-        return candidates.first { !$0.isEmpty }.map(Family7URL.absolute) ?? ""
+        let player = Family7Parser.playerURL(doc, html: html)
+        if !player.isEmpty { return player }
+        return Family7URL.absolute(doc.firstAttribute("iframe[src]", "src"))
     }
 
     private func resolveStream(_ player: String) async -> String {
-        guard !player.isEmpty, let url = URL(string: player),
-              let (data, _) = try? await http.get(url, referer: "https://www.family7.nl/") else { return "" }
-        return StreampartnerPlayer.decodeStreamURLs(String(decoding: data, as: UTF8.self)).first ?? ""
+        guard !player.isEmpty, let page = try? await pages.page(player, referer: "https://www.family7.nl/", fresh: true) else { return "" }
+        return StreampartnerPlayer.decodeStreamURLs(page.html).first ?? ""
     }
 }
 
@@ -456,28 +419,16 @@ final class LiveRepository: @unchecked Sendable {
 /// "Mijn lijst" van het account: dezelfde lijst als op de website.
 final class MyListRepository: @unchecked Sendable {
     private let http = Family7HTTP.shared
+    private let pages = PageFetcher.shared
     private static let myList = "https://www.family7.nl/plus/mijnlijst"
 
     func fetch() async throws -> [ProgramItem] {
-        let doc: Document
         do {
-            doc = try await http.document(URL(string: Self.myList)!)
+            // Altijd vers: net na toevoegen of verwijderen moet de lijst kloppen.
+            return Family7Parser.myList(try await pages.document(Self.myList, fresh: true))
         } catch is UnauthorizedError {
             throw Family7Error("Log in om uw lijst te zien.")
         }
-        var seen = Set<String>()
-        return doc.all(".view-block_element-wrapper, .view-block_element, .slider-default_element").compactMap { card -> ProgramItem? in
-            guard let href = card.one("a[href*='/plus/programmas/']")?.attribute("href") else { return nil }
-            let image = card.one("img")
-            let slug = Family7URL.slug(href)
-            return ProgramItem(
-                id: href, slug: slug,
-                title: image?.attribute("title").nonEmpty ?? Family7URL.titleFromSlug(slug),
-                thumbnailURL: Family7URL.absolute(image?.attribute("src") ?? ""),
-                url: Family7URL.absolute(href),
-                nodeId: card.one("[data-node-id]")?.attribute("data-node-id") ?? ""
-            )
-        }.filter { seen.insert($0.slug).inserted }
     }
 
     /// Via hetzelfde eindpunt als de knop op de website. Geeft terug of het programma er nu in staat.
@@ -486,7 +437,7 @@ final class MyListRepository: @unchecked Sendable {
             throw Family7Error("Dit programma heeft geen node-id.")
         }
         let (data, response) = try await http.get(url, referer: "https://www.family7.nl/plus",
-                                                  headers: ["X-Requested-With": "XMLHttpRequest"])
+                                                  headers: ["X-Requested-With": "XMLHttpRequest"], fresh: true)
         guard (200..<300).contains(response.statusCode) else {
             throw Family7Error("Kon de lijst niet bijwerken (\(response.statusCode)).")
         }

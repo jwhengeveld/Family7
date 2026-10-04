@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		0DC4AB9622716CDDDC42E871 /* Loader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8300D5B4948B6A46E2C92231 /* Loader.swift */; };
+		0E99828B857A9FBB73ACDAD2 /* Family7Parser.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD41AF842B268AB08FCC72EA /* Family7Parser.swift */; };
+		12680ED1A43E8C752E16E792 /* PageFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63A0044AFEC0C4969B48269E /* PageFetcher.swift */; };
 		1EA972E528020CE3BBC45BED /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 19756E1D964278257BDA19C2 /* Assets.xcassets */; };
 		1F84FE382FD41E9D7503A9DA /* GoogleCastCoreResources.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 76BEAABC76A8A33571DD13AC /* GoogleCastCoreResources.bundle */; };
 		2297BEBE09C4D3B30981AA66 /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93C8DA9758AB24C0E438E01E /* PlayerView.swift */; };
@@ -17,27 +19,35 @@
 		2DF560DD8C1B91F868DE8179 /* PlaybackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B1B9F89D7F3DD93E30A4610 /* PlaybackManager.swift */; };
 		2EFF382DC7FF0BB78A5FAEB9 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DE185A54C40813E5AB9652 /* SplashView.swift */; };
 		41969652A20F6F653075B274 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD4E931045D676193117E51 /* Components.swift */; };
+		4697BFBBD7DF33679B7E38D0 /* programma_1_seizoen.html in Resources */ = {isa = PBXBuildFile; fileRef = 940AF9B3E442012916E04634 /* programma_1_seizoen.html */; };
+		46E3F8BCBD8356F23C0E810F /* Family7ParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEE46092EB0550522767BE07 /* Family7ParserTests.swift */; };
 		47557528802FE070C61F4EE8 /* MaterialDialogs.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 107F6C19ABAA22351506C654 /* MaterialDialogs.bundle */; };
 		4B3110CE252CD021EC8FCD43 /* StreampartnerPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44BB4EDF02430B7C22889239 /* StreampartnerPlayer.swift */; };
 		4EB41F9CFB303BCC9C56C818 /* GoogleCastOptionalUIResources.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 13CDA016F5C2B7A3CBEB158E /* GoogleCastOptionalUIResources.bundle */; };
 		4FE225F532E8D55C8F9B1DF4 /* Caching.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23A8E8FA189CCF0FE366370A /* Caching.swift */; };
 		549F4D3CFE1110829382A1C3 /* GoogleSansMedium.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 0C19ECDD801D0D846073E5AD /* GoogleSansMedium.bundle */; };
 		54C16A07770F29F3F03FF439 /* LiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65F6A5BB507904556D0B6D10 /* LiveView.swift */; };
+		5E35660925C4FBD26C03B3C0 /* seizoen_2.json in Resources */ = {isa = PBXBuildFile; fileRef = 2F67B0F5DDA857A764076982 /* seizoen_2.json */; };
+		625D9BD10EC7A965BEC51C5C /* programma_13_seizoenen.html in Resources */ = {isa = PBXBuildFile; fileRef = 3E8CF1AE189CD2079CF3B1B3 /* programma_13_seizoenen.html */; };
 		70FE8D4729D1A43EAADAF75D /* ProgramView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0224387134E9A6AB166D8332 /* ProgramView.swift */; };
 		767AD54D46DB262963E56575 /* GoogleSansRegular.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 18A3CEFE5E78CBE67527B005 /* GoogleSansRegular.bundle */; };
 		79CBD4C93F85ED4D7B28AEC2 /* Family7HTTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = D554C0F944246406C6086755 /* Family7HTTP.swift */; };
 		7A8D6A28C90CB5337AC99D0E /* GTMSessionFetcherCore in Frameworks */ = {isa = PBXBuildFile; productRef = 71EB7F2CDA0DDB48D1B6959E /* GTMSessionFetcherCore */; };
 		80C57B465AC771CC88142902 /* StreampartnerPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46B3FBC3DAC64F85952D0D97 /* StreampartnerPlayerTests.swift */; };
+		88BBC07488256ABC0A6C6907 /* video_publiek.html in Resources */ = {isa = PBXBuildFile; fileRef = A1B4AF380F6930D6336FAFC8 /* video_publiek.html */; };
 		8F5A324357988C28DE84483B /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E291DF49679EFB2880EDDD /* HomeView.swift */; };
 		998C4944245DF541F6F5BB13 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5915D2E41CA8E5BC97ED068 /* LoginView.swift */; };
 		A6237FF854F2C468210DC310 /* ImagePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEE120120EC09F966E038F7A /* ImagePipeline.swift */; };
 		AE7B7DD52B6D80AF695B69D2 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1365EFF14568F43CA2C9303 /* AppModel.swift */; };
+		B68BDB19C12F45A78E87A3AD /* startpagina_nagebouwd.html in Resources */ = {isa = PBXBuildFile; fileRef = 6A585A94555D902CF5615171 /* startpagina_nagebouwd.html */; };
 		B77876C2B8C7D116169CDA85 /* GoogleCast.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = B87C91BD1D04460EDF902DAA /* GoogleCast.xcframework */; };
 		BC85AB5EAF07E9BE52A529DE /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0542A072E5598A9A9F64E551 /* Models.swift */; };
 		BD4396BD426217E095C5C8CB /* CachingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41BA05F7F6D8F5D7350D3B92 /* CachingTests.swift */; };
 		C20E36E4CE351867745981DE /* Family7App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763A8AB7819BB8FC91F2964F /* Family7App.swift */; };
+		D8E6BF4299949FFBCE2DACFF /* inlogpagina.html in Resources */ = {isa = PBXBuildFile; fileRef = 1EED12CB684C24B973457456 /* inlogpagina.html */; };
 		E9E9C5E0F90D0E3C2B188207 /* Repositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB42B73BC61B1798711138BC /* Repositories.swift */; };
 		EF84C834A1ACA0E634AAE278 /* GoogleSansBold.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 98E156CA0C87903391106107 /* GoogleSansBold.bundle */; };
+		F7C2AAF6F25BE46B112E4D6A /* az.html in Resources */ = {isa = PBXBuildFile; fileRef = D735044FB0850AB4DBD4F872 /* az.html */; };
 		F953E434DE849FDD07AC3118 /* ListViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 154DBC2A24A1EF4A139A32EB /* ListViews.swift */; };
 		FBF02169AD7A0D40C1233C11 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44C634A3557925ED43775459 /* Theme.swift */; };
 /* End PBXBuildFile section */
@@ -62,28 +72,38 @@
 		16E291DF49679EFB2880EDDD /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		18A3CEFE5E78CBE67527B005 /* GoogleSansRegular.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = GoogleSansRegular.bundle; sourceTree = "<group>"; };
 		19756E1D964278257BDA19C2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1EED12CB684C24B973457456 /* inlogpagina.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = inlogpagina.html; sourceTree = "<group>"; };
 		23A8E8FA189CCF0FE366370A /* Caching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Caching.swift; sourceTree = "<group>"; };
+		2F67B0F5DDA857A764076982 /* seizoen_2.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = seizoen_2.json; sourceTree = "<group>"; };
 		3B1B9F89D7F3DD93E30A4610 /* PlaybackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackManager.swift; sourceTree = "<group>"; };
+		3E8CF1AE189CD2079CF3B1B3 /* programma_13_seizoenen.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = programma_13_seizoenen.html; sourceTree = "<group>"; };
 		41BA05F7F6D8F5D7350D3B92 /* CachingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachingTests.swift; sourceTree = "<group>"; };
 		44BB4EDF02430B7C22889239 /* StreampartnerPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreampartnerPlayer.swift; sourceTree = "<group>"; };
 		44C634A3557925ED43775459 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		46B3FBC3DAC64F85952D0D97 /* StreampartnerPlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreampartnerPlayerTests.swift; sourceTree = "<group>"; };
+		63A0044AFEC0C4969B48269E /* PageFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageFetcher.swift; sourceTree = "<group>"; };
 		64DE185A54C40813E5AB9652 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		65F6A5BB507904556D0B6D10 /* LiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveView.swift; sourceTree = "<group>"; };
+		6A585A94555D902CF5615171 /* startpagina_nagebouwd.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = startpagina_nagebouwd.html; sourceTree = "<group>"; };
 		763A8AB7819BB8FC91F2964F /* Family7App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Family7App.swift; sourceTree = "<group>"; };
 		76BEAABC76A8A33571DD13AC /* GoogleCastCoreResources.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = GoogleCastCoreResources.bundle; sourceTree = "<group>"; };
 		8300D5B4948B6A46E2C92231 /* Loader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Loader.swift; sourceTree = "<group>"; };
 		8FDC4C38E9F0D4CA54B2BFBA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9202E8C2411D1AD9B5ACB4A9 /* CastSetup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CastSetup.swift; sourceTree = "<group>"; };
 		93C8DA9758AB24C0E438E01E /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
+		940AF9B3E442012916E04634 /* programma_1_seizoen.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = programma_1_seizoen.html; sourceTree = "<group>"; };
 		98E156CA0C87903391106107 /* GoogleSansBold.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = GoogleSansBold.bundle; sourceTree = "<group>"; };
+		A1B4AF380F6930D6336FAFC8 /* video_publiek.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = video_publiek.html; sourceTree = "<group>"; };
 		ABE2AC3A7953F301EE1A958F /* GoogleCastUIResources.bundle */ = {isa = PBXFileReference; lastKnownFileType = wrapper.cfbundle; path = GoogleCastUIResources.bundle; sourceTree = "<group>"; };
+		AD41AF842B268AB08FCC72EA /* Family7Parser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Family7Parser.swift; sourceTree = "<group>"; };
 		B87C91BD1D04460EDF902DAA /* GoogleCast.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = GoogleCast.xcframework; path = Vendor/GoogleCast.xcframework; sourceTree = "<group>"; };
 		BEE120120EC09F966E038F7A /* ImagePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePipeline.swift; sourceTree = "<group>"; };
 		C5915D2E41CA8E5BC97ED068 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		CB42B73BC61B1798711138BC /* Repositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Repositories.swift; sourceTree = "<group>"; };
 		D505F6BA29EDF09D6431C32C /* Family7.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Family7.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D554C0F944246406C6086755 /* Family7HTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Family7HTTP.swift; sourceTree = "<group>"; };
+		D735044FB0850AB4DBD4F872 /* az.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = az.html; sourceTree = "<group>"; };
+		EEE46092EB0550522767BE07 /* Family7ParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Family7ParserTests.swift; sourceTree = "<group>"; };
 		EFD4E931045D676193117E51 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		F1365EFF14568F43CA2C9303 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		F6CA1A6C710CE6F141151433 /* Family7Tests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = Family7Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -206,9 +226,25 @@
 			isa = PBXGroup;
 			children = (
 				41BA05F7F6D8F5D7350D3B92 /* CachingTests.swift */,
+				EEE46092EB0550522767BE07 /* Family7ParserTests.swift */,
 				46B3FBC3DAC64F85952D0D97 /* StreampartnerPlayerTests.swift */,
+				A00514EC2B6C3B911C34C657 /* Fixtures */,
 			);
 			path = Family7Tests;
+			sourceTree = "<group>";
+		};
+		A00514EC2B6C3B911C34C657 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				D735044FB0850AB4DBD4F872 /* az.html */,
+				1EED12CB684C24B973457456 /* inlogpagina.html */,
+				940AF9B3E442012916E04634 /* programma_1_seizoen.html */,
+				3E8CF1AE189CD2079CF3B1B3 /* programma_13_seizoenen.html */,
+				2F67B0F5DDA857A764076982 /* seizoen_2.json */,
+				6A585A94555D902CF5615171 /* startpagina_nagebouwd.html */,
+				A1B4AF380F6930D6336FAFC8 /* video_publiek.html */,
+			);
+			path = Fixtures;
 			sourceTree = "<group>";
 		};
 		BA66B5DD2797A66D1FCE3C73 /* ios-arm64 */ = {
@@ -233,7 +269,9 @@
 			children = (
 				23A8E8FA189CCF0FE366370A /* Caching.swift */,
 				D554C0F944246406C6086755 /* Family7HTTP.swift */,
+				AD41AF842B268AB08FCC72EA /* Family7Parser.swift */,
 				0542A072E5598A9A9F64E551 /* Models.swift */,
+				63A0044AFEC0C4969B48269E /* PageFetcher.swift */,
 				CB42B73BC61B1798711138BC /* Repositories.swift */,
 				44BB4EDF02430B7C22889239 /* StreampartnerPlayer.swift */,
 			);
@@ -279,6 +317,7 @@
 			buildConfigurationList = FC062BB49D6EBE5134FE8755 /* Build configuration list for PBXNativeTarget "Family7Tests" */;
 			buildPhases = (
 				80DF7D463E80FCE995733927 /* Sources */,
+				661B4678BC034C19D90F8E05 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -356,6 +395,20 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		661B4678BC034C19D90F8E05 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F7C2AAF6F25BE46B112E4D6A /* az.html in Resources */,
+				D8E6BF4299949FFBCE2DACFF /* inlogpagina.html in Resources */,
+				625D9BD10EC7A965BEC51C5C /* programma_13_seizoenen.html in Resources */,
+				4697BFBBD7DF33679B7E38D0 /* programma_1_seizoen.html in Resources */,
+				5E35660925C4FBD26C03B3C0 /* seizoen_2.json in Resources */,
+				B68BDB19C12F45A78E87A3AD /* startpagina_nagebouwd.html in Resources */,
+				88BBC07488256ABC0A6C6907 /* video_publiek.html in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		914024047C271ED738843206 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -379,6 +432,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BD4396BD426217E095C5C8CB /* CachingTests.swift in Sources */,
+				46E3F8BCBD8356F23C0E810F /* Family7ParserTests.swift in Sources */,
 				80C57B465AC771CC88142902 /* StreampartnerPlayerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -393,6 +447,7 @@
 				41969652A20F6F653075B274 /* Components.swift in Sources */,
 				C20E36E4CE351867745981DE /* Family7App.swift in Sources */,
 				79CBD4C93F85ED4D7B28AEC2 /* Family7HTTP.swift in Sources */,
+				0E99828B857A9FBB73ACDAD2 /* Family7Parser.swift in Sources */,
 				8F5A324357988C28DE84483B /* HomeView.swift in Sources */,
 				A6237FF854F2C468210DC310 /* ImagePipeline.swift in Sources */,
 				F953E434DE849FDD07AC3118 /* ListViews.swift in Sources */,
@@ -400,6 +455,7 @@
 				0DC4AB9622716CDDDC42E871 /* Loader.swift in Sources */,
 				998C4944245DF541F6F5BB13 /* LoginView.swift in Sources */,
 				BC85AB5EAF07E9BE52A529DE /* Models.swift in Sources */,
+				12680ED1A43E8C752E16E792 /* PageFetcher.swift in Sources */,
 				2DF560DD8C1B91F868DE8179 /* PlaybackManager.swift in Sources */,
 				2297BEBE09C4D3B30981AA66 /* PlayerView.swift in Sources */,
 				70FE8D4729D1A43EAADAF75D /* ProgramView.swift in Sources */,
