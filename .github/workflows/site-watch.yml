@@ -1,0 +1,40 @@
+name: Sitewachter family7.nl
+
+# Controleert elke week of family7.nl nog leest zoals de apps verwachten
+# (core/src/test/.../LiveSiteTest.kt). Verandert Family7 iets aan de opmaak,
+# dan komt er een issue, voordat kijkers lege schermen zien.
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # maandag 08:17 Nederlandse tijd
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+      - name: Sitewachter
+        id: watch
+        run: |
+          chmod +x gradlew
+          ./gradlew :core:testDebugUnitTest --tests '*LiveSiteTest*' -Pfamily7.live=true --stacktrace
+      - name: Issue bij een verandering aan de site
+        if: failure() && steps.watch.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Sitewachter: family7.nl leest niet meer zoals verwacht"
+          if gh issue list --state open --search "$TITLE in:title" --json number --jq 'length' | grep -q '^0$'; then
+            gh issue create --title "$TITLE" --body "De wekelijkse sitewachter faalt: [run ${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+          Waarschijnlijk is de opmaak van family7.nl veranderd. De apps vallen terug op hun vangnetten en de laatst goede catalogus, maar controleer \`Family7Parser\` (Android) en \`Family7Parser.swift\` (iOS)."
+          fi

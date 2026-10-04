@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -83,6 +87,7 @@ fun ProgramScreen(
     // De lijst van het account is leidend; is die nog niet geladen, dan wat de
     // programmapagina van Family7 zelf aangeeft.
     val inMyList = if (myList.isNotEmpty()) myList.any { it.slug == preview.slug } else detail?.isInMyList == true
+    var selectedSeason by rememberSaveable(preview.slug) { mutableStateOf<String?>(null) }
     // De knop reageert meteen; Family7 bevestigt op de achtergrond.
     var optimisticInList by remember(inMyList) { mutableStateOf(inMyList) }
 
@@ -166,13 +171,34 @@ fun ProgramScreen(
                             }
                         }
 
-                        detail.seasons.forEach { season ->
+                        // Eén seizoen tegelijk, met een keuze erboven: series als
+                        // "Bijbelse karakters" hebben dertien seizoenen.
+                        val shown = detail.seasons.firstOrNull { it.seasonNumber == selectedSeason }
+                            ?: detail.seasons.firstOrNull()
+                        if (detail.seasons.size > 1) {
+                            item(key = "season-picker") {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(top = 16.dp)
+                                ) {
+                                    items(detail.seasons, key = { it.seasonNumber }) { season ->
+                                        FilterChip(
+                                            selected = season.seasonNumber == shown?.seasonNumber,
+                                            onClick = { selectedSeason = season.seasonNumber },
+                                            label = { Text(season.title) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        listOfNotNull(shown).forEach { season ->
                             item(key = "season-${season.seasonNumber}") {
                                 Text(
-                                    season.title,
+                                    if (detail.seasons.size > 1) "${season.title} · ${season.episodes.size} afleveringen" else season.title,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp)
+                                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)
                                 )
                             }
                             items(season.episodes, key = { "ep-" + it.videoSlug }) { episode ->

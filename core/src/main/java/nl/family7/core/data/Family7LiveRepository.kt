@@ -11,6 +11,7 @@ class Family7LiveRepository(appContext: Context) {
     private val context: Context = appContext.applicationContext
 
     private val client = Family7Http.getClient(context)
+    private val pages = Family7Http.getPageFetcher(context)
 
     /**
      * Onthoudt de laatst werkende speler- en stream-URL. Streampartner wisselt
@@ -27,15 +28,10 @@ class Family7LiveRepository(appContext: Context) {
 
     suspend fun getLiveInfo(): Result<LiveStreamInfo> = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder()
-                .url(LIVE_PAGE_URL)
-                .build()
-
-            val resp = client.newCall(req).execute()
-            val html = resp.body?.string() ?: ""
-            resp.close()
-
-            val doc = Jsoup.parse(html)
+            // Via de gedeelde ophaler: een verlopen sessie wordt herkend en
+            // gemeld in plaats van dat de livepagina leeg lijkt.
+            val doc = pages.document(LIVE_PAGE_URL, maxAgeMs = 15_000)
+            val html = doc.outerHtml()
 
             // Extract TV Guide "NU OP TV" metadata
             val currentProgTitle = doc.select(".tv-guide-teaser_title, .tv-guide-teaser h2, .tv-guide-teaser h3").text().ifEmpty {

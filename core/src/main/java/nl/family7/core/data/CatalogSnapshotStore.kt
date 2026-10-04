@@ -29,6 +29,12 @@ class CatalogSnapshotStore(context: Context) {
     fun writeItems(name: String, items: List<ProgramItem>) =
         write(name, CatalogJson.encodeItems(items))
 
+    fun readDetail(name: String): ProgramDetail? =
+        read(name)?.let { runCatching { CatalogJson.decodeDetail(it) }.getOrNull() }
+
+    fun writeDetail(name: String, detail: ProgramDetail) =
+        write(name, CatalogJson.encodeDetail(detail))
+
     fun clear() {
         runCatching { dir.deleteRecursively() }
     }
@@ -81,6 +87,62 @@ internal object CatalogJson {
     }
 
     fun encodeItems(items: List<ProgramItem>): String = itemsToJson(items).toString()
+
+    fun encodeDetail(detail: ProgramDetail): String = JSONObject()
+        .put("slug", detail.slug)
+        .put("title", detail.title)
+        .put("posterUrl", detail.posterUrl)
+        .put("description", detail.description)
+        .put("category", detail.category)
+        .put("nodeId", detail.nodeId)
+        .put("isInMyList", detail.isInMyList)
+        .put("seasons", JSONArray().apply {
+            detail.seasons.forEach { season ->
+                put(JSONObject()
+                    .put("number", season.seasonNumber)
+                    .put("title", season.title)
+                    .put("episodes", JSONArray().apply {
+                        season.episodes.forEach { e ->
+                            put(JSONObject()
+                                .put("id", e.id).put("number", e.episodeNumber).put("title", e.title)
+                                .put("description", e.description).put("duration", e.duration)
+                                .put("thumbnailUrl", e.thumbnailUrl).put("videoSlug", e.videoSlug).put("videoUrl", e.videoUrl))
+                        }
+                    }))
+            }
+        }).toString()
+
+    fun decodeDetail(json: String): ProgramDetail {
+        val o = JSONObject(json)
+        val seasons = o.optJSONArray("seasons") ?: JSONArray()
+        return ProgramDetail(
+            slug = o.getString("slug"),
+            title = o.optString("title"),
+            posterUrl = o.optString("posterUrl"),
+            description = o.optString("description"),
+            category = o.optString("category"),
+            nodeId = o.optString("nodeId"),
+            isInMyList = o.optBoolean("isInMyList"),
+            seasons = (0 until seasons.length()).map { i ->
+                val s = seasons.getJSONObject(i)
+                val episodes = s.optJSONArray("episodes") ?: JSONArray()
+                SeasonInfo(
+                    seasonNumber = s.optString("number"),
+                    title = s.optString("title"),
+                    episodes = (0 until episodes.length()).mapNotNull { j ->
+                        val e = episodes.optJSONObject(j) ?: return@mapNotNull null
+                        val slug = e.optString("videoSlug").ifEmpty { return@mapNotNull null }
+                        EpisodeItem(
+                            id = e.optString("id").ifEmpty { slug }, episodeNumber = e.optString("number"),
+                            title = e.optString("title"), description = e.optString("description"),
+                            duration = e.optString("duration"), thumbnailUrl = e.optString("thumbnailUrl"),
+                            videoSlug = slug, videoUrl = e.optString("videoUrl")
+                        )
+                    }
+                )
+            }
+        )
+    }
 
     fun decodeItems(json: String): List<ProgramItem> = itemsFromJson(JSONArray(json))
 

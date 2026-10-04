@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.json.JSONObject
-import org.jsoup.Jsoup
 
 /**
  * "Mijn lijst" van het ingelogde Family7-account.
@@ -20,6 +19,7 @@ import org.jsoup.Jsoup
 class Family7MyListRepository(appContext: Context) {
     private val context: Context = appContext.applicationContext
     private val client = Family7Http.getClient(context)
+    private val pages = Family7Http.getPageFetcher(context)
 
     private val _items = MutableStateFlow<List<ProgramItem>>(emptyList())
     val items: StateFlow<List<ProgramItem>> = _items.asStateFlow()
@@ -32,45 +32,15 @@ class Family7MyListRepository(appContext: Context) {
     /** Haalt de lijst opnieuw op bij Family7. */
     suspend fun refresh(): Result<List<ProgramItem>> = withContext(Dispatchers.IO) {
         try {
-            val req = Request.Builder()
-                .url(MY_LIST_URL)
-                .header("Referer", "$BASE_URL/plus")
-                .build()
-
-            client.newCall(req).execute().use { resp ->
-                if (resp.code == 401 || resp.code == 403) {
-                    _items.value = emptyList()
-                    return@withContext Result.failure(
-                        Exception("Log in om uw lijst te zien.")
-                    )
-                }
-                val doc = Jsoup.parse(resp.body?.string() ?: "", MY_LIST_URL)
-                val items = doc.select(".view-block_element-wrapper, .view-block_element, .slider-default_element")
-                    .mapNotNull { card ->
-                        val href = card.selectFirst("a[href*='/plus/programmas/']")?.attr("href")
-                            ?: return@mapNotNull null
-                        val img = card.selectFirst("img")
-                        val slug = href.substringBefore("?").trimEnd('/').substringAfterLast('/')
-                        ProgramItem(
-                            id = href,
-                            slug = slug,
-                            title = img?.attr("title")?.trim()?.takeIf { it.isNotEmpty() }
-                                ?: slug.replace('-', ' ')
-                                    .split(" ")
-                                    .filter { it.isNotEmpty() }
-                                    .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } },
-                            thumbnailUrl = img?.attr("src").orEmpty()
-                                .let { if (it.startsWith("/")) "$BASE_URL$it" else it },
-                            url = if (href.startsWith("http")) href else "$BASE_URL$href",
-                            nodeId = card.selectFirst("[data-node-id]")?.attr("data-node-id").orEmpty()
-                        )
-                    }
-                    .distinctBy { it.slug }
-
-                _items.value = items
-                Result.success(items)
-            }
+            // Altijd vers: net na toevoegen of verwijderen moet de lijst kloppen.
+            val items = Family7Parser.myList(pages.document(MY_LIST_URL, maxAgeMs = 0))
+            _items.value = items
+            Result.success(items)
+        } catch (e: UnauthorizedException) {
+            _items.value = emptyList()
+            Result.failure(Exception("Log in om uw lijst te zien."))
         } catch (e: Exception) {
+            // Een netwerkfout of verlopen sessie wist de bekende lijst niet.
             Result.failure(e)
         }
     }

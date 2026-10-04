@@ -38,6 +38,7 @@ import nl.family7.core.data.Family7MyListRepository
 import nl.family7.core.data.Family7VideoRepository
 import nl.family7.core.data.ProgramDetail
 import nl.family7.core.data.ProgramItem
+import nl.family7.core.data.SessionEvents
 import nl.family7.core.data.UserSession
 import nl.family7.tv.ui.screens.HomeScreen
 import nl.family7.tv.ui.screens.LiveTVScreen
@@ -125,6 +126,19 @@ fun Family7TVApp(
             screenState = ScreenState.Home
         } else {
             screenState = ScreenState.Login
+        }
+    }
+
+    // Gaf Family7 ergens een anonieme pagina of de inlogpagina terug, dan de
+    // sessie laten bevestigen; alleen als die echt voorbij is, naar het aanmeldscherm.
+    LaunchedEffect(Unit) {
+        SessionEvents.expired.collect {
+            if (currentSession?.isLoggedIn == true && !authRepo.checkSession().isLoggedIn) {
+                currentSession = null
+                myListRepo.clear()
+                catalogRepo.clearMemoryCache()
+                screenState = ScreenState.Login
+            }
         }
     }
 

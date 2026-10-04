@@ -164,6 +164,16 @@ object Family7Http {
         clientInstance ?: buildClient(context).also { clientInstance = it }
     }
 
+    @Volatile private var pageFetcherInstance: PageFetcher? = null
+
+    /** Eén ophaler voor alle repositories, zodat ze verzoeken en de korte cache delen. */
+    fun getPageFetcher(context: Context): PageFetcher = synchronized(this) {
+        pageFetcherInstance ?: run {
+            val jar = getCookieJar(context)
+            PageFetcher(getClient(context), hasSessionCookie = { jar.hasSessionCookie() })
+        }.also { pageFetcherInstance = it }
+    }
+
     fun getCookieJar(context: Context): PersistentCookieJar = synchronized(this) {
         cookieJarInstance
             ?: PersistentCookieJar(context.applicationContext).also { cookieJarInstance = it }

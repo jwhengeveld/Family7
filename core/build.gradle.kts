@@ -46,4 +46,10 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.okhttp)
     testImplementation("org.json:json:20240303")
+    testImplementation(kotlin("test"))
+}
+
+// De sitewachter (LiveSiteTest) draait alleen met -Pfamily7.live=true.
+tasks.withType<Test>().configureEach {
+    systemProperty("family7.live", project.findProperty("family7.live")?.toString() ?: "false")
 }

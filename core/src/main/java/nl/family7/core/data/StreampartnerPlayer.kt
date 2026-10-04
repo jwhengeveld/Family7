@@ -53,6 +53,21 @@ internal object StreampartnerPlayer {
         return found.filter { it.isNotBlank() }.distinct()
     }
 
+    private val LABELLED_SOURCE = Pattern.compile("src:\\s*[\"'](https?://[^\"']+\\.m3u8[^\"']*)[\"']")
+    private val MP4 = Pattern.compile("https?://[^\\s\"'<>]+\\.mp4[^\\s\"'<>]*")
+
+    /**
+     * Het stream-adres uit een spelerpagina: eerst wat er als "src:" staat, dan
+     * wat er letterlijk staat, dan wat er ingepakt staat, en als laatste een los
+     * mp4-bestand (oudere afleveringen).
+     */
+    fun streamUrlFromPlayerHtml(html: String): String {
+        LABELLED_SOURCE.matcher(html).let { if (it.find()) return it.group(1).orEmpty() }
+        firstM3u8(html).takeIf { it.isNotEmpty() }?.let { return it }
+        decodeStreamUrls(html).firstOrNull()?.let { return it }
+        MP4.matcher(html).let { return if (it.find()) it.group(0).orEmpty() else "" }
+    }
+
     /** De vier tekenreeksen waarmee de speler wordt aangeroepen. */
     fun parseJsStringArgs(raw: String): List<String> {
         val found = mutableListOf<String>()

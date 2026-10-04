@@ -13,6 +13,7 @@ import nl.family7.core.data.CategoryRow
 import nl.family7.core.data.LiveStreamInfo
 import nl.family7.core.data.ProgramDetail
 import nl.family7.core.data.ProgramItem
+import nl.family7.core.data.SessionEvents
 import nl.family7.mobile.Family7MobileApp
 
 // ---------------------------------------------------------------- aanmelden
@@ -35,6 +36,14 @@ class AppViewModel(private val app: Family7MobileApp) : ViewModel() {
     val loggingIn: StateFlow<Boolean> = _loggingIn.asStateFlow()
 
     init {
+        // Gaf Family7 ergens een anonieme pagina of de inlogpagina terug, dan
+        // laten we Family7 de sessie bevestigen; alleen als die echt voorbij
+        // is, gaat de gebruiker naar het aanmeldscherm.
+        viewModelScope.launch {
+            SessionEvents.expired.collect {
+                if (_auth.value == AuthState.LoggedIn && !app.auth.checkSession().isLoggedIn) signedOut()
+            }
+        }
         viewModelScope.launch {
             // De catalogus van de vorige keer klaarzetten, zodat het startscherm
             // meteen gevuld is.

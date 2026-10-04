@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nl.family7.core.data.NetworkMonitor
+import nl.family7.core.data.SessionExpiredException
+import nl.family7.core.data.UnauthorizedException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -96,6 +98,10 @@ class Loader<T>(
 fun friendlyError(error: Throwable?): String {
     val cause = generateSequence(error) { it.cause }.toList()
     return when {
+        cause.any { it is SessionExpiredException } ->
+            "Uw sessie bij Family7 is verlopen. Log opnieuw in."
+        cause.any { it is UnauthorizedException } ->
+            "Log in met uw Family7 Plus-account om dit te zien."
         cause.any { it is UnknownHostException || it is ConnectException } ->
             "Geen verbinding met Family7. De app probeert het vanzelf opnieuw zodra er weer internet is."
         cause.any { it is SocketTimeoutException } ->
