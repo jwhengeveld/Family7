@@ -59,7 +59,10 @@ data class PlaybackState(
     val isLoading: Boolean = false,
     val isPlaying: Boolean = false,
     val error: String? = null,
-    /** Er is een Chromecast of Google TV in het netwerk. */
+    /**
+     * Google Cast werkt op dit toestel (Play-services aanwezig). De Cast-knop
+     * staat er dan altijd; hij zoekt zelf naar een Chromecast of Google TV.
+     */
     val castAvailable: Boolean = false,
     val isCasting: Boolean = false,
     val castDeviceName: String? = null
@@ -405,12 +408,10 @@ class PlaybackManager(
         })
         castPlayer = cast
 
-        context.addCastStateListener { castState ->
-            _state.update { it.copy(castAvailable = castState != com.google.android.gms.cast.framework.CastState.NO_DEVICES_AVAILABLE) }
-        }
-        _state.update {
-            it.copy(castAvailable = context.castState != com.google.android.gms.cast.framework.CastState.NO_DEVICES_AVAILABLE)
-        }
+        // De Cast-knop hoort er altijd te staan zodra Cast op dit toestel werkt:
+        // Android zoekt pas naar Chromecasts als er een Cast-knop in beeld is.
+        // Wachten tot er al een apparaat gevonden is, betekent dus nooit een knop.
+        _state.update { it.copy(castAvailable = true) }
         context.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
 
         // Een sessie die al liep (de app werd herstart tijdens het casten).

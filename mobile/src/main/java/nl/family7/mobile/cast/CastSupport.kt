@@ -67,6 +67,33 @@ class CastOptionsProvider : OptionsProvider {
  */
 object CastAvailability {
 
+    /**
+     * Zoekt naar Cast-apparaten zolang de app op de voorgrond is, zodat de
+     * apparatenkiezer bij de eerste tik meteen gevulde is. Passief zoeken: het
+     * systeem bepaalt hoe vaak, dat spaart de accu.
+     */
+    fun discoverWhileStarted(activity: androidx.activity.ComponentActivity) {
+        val playServices = runCatching {
+            GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(activity)
+        }.getOrDefault(ConnectionResult.SERVICE_MISSING)
+        if (playServices != ConnectionResult.SUCCESS) return
+
+        val router = androidx.mediarouter.media.MediaRouter.getInstance(activity)
+        val selector = androidx.mediarouter.media.MediaRouteSelector.Builder()
+            .addControlCategory(com.google.android.gms.cast.CastMediaControlIntent.categoryForCast(BuildConfig.CAST_RECEIVER_ID))
+            .build()
+        val callback = object : androidx.mediarouter.media.MediaRouter.Callback() {}
+        activity.lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
+            override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
+                router.addCallback(selector, callback, androidx.mediarouter.media.MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY)
+            }
+            override fun onStop(owner: androidx.lifecycle.LifecycleOwner) {
+                router.removeCallback(callback)
+            }
+        })
+    }
+
+
     fun init(context: Context, onReady: (CastContext) -> Unit) {
         val playServices = runCatching {
             GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context)
@@ -175,8 +202,8 @@ class Family7MediaItemConverter : MediaItemConverter {
 }
 
 /**
- * De standaard Cast-knop. Verschijnt vanzelf zodra er een Chromecast of
- * Google TV in het netwerk is, en opent dan de apparatenkiezer.
+ * De standaard Cast-knop. Opent de apparatenkiezer; staat hij in beeld, dan
+ * zoekt Android naar Chromecasts en Google TV's in het netwerk.
  */
 @Composable
 fun CastButton(modifier: Modifier = Modifier) {

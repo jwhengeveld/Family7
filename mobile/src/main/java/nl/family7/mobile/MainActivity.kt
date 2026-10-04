@@ -98,6 +98,7 @@ class MainActivity : AppCompatActivity() {
         )
         super.onCreate(savedInstanceState)
         isInPip = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode
+        nl.family7.mobile.cast.CastAvailability.discoverWhileStarted(this)
 
         setContent {
             Family7MobileTheme {
