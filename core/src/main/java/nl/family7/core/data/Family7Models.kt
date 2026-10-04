@@ -1,4 +1,4 @@
-package nl.family7.tv.data
+package nl.family7.core.data
 
 data class UserSession(
     val isLoggedIn: Boolean = false,

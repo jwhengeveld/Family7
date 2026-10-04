@@ -83,6 +83,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
@@ -105,17 +106,12 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.exoplayer.hls)
 
-    // Network & HTML Parser for Drupal / Streampartner
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
-    implementation(libs.jsoup)
 
     // Async Image loading
     implementation(libs.coil.compose)
 
     // Testing
     testImplementation(libs.junit)
-    testImplementation(libs.okhttp)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     debugImplementation(libs.androidx.compose.ui.tooling)

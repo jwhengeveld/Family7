@@ -27,15 +27,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
-import nl.family7.tv.data.EpisodeItem
-import nl.family7.tv.data.Family7AuthRepository
-import nl.family7.tv.data.Family7CatalogRepository
-import nl.family7.tv.data.Family7LiveRepository
-import nl.family7.tv.data.Family7MyListRepository
-import nl.family7.tv.data.Family7VideoRepository
-import nl.family7.tv.data.ProgramDetail
-import nl.family7.tv.data.ProgramItem
-import nl.family7.tv.data.UserSession
+import nl.family7.core.data.EpisodeItem
+import nl.family7.core.data.Family7AuthRepository
+import nl.family7.core.data.Family7CatalogRepository
+import nl.family7.core.data.Family7LiveRepository
+import nl.family7.core.data.Family7MyListRepository
+import nl.family7.core.data.Family7VideoRepository
+import nl.family7.core.data.ProgramDetail
+import nl.family7.core.data.ProgramItem
+import nl.family7.core.data.UserSession
 import nl.family7.tv.ui.screens.HomeScreen
 import nl.family7.tv.ui.screens.LiveTVScreen
 import nl.family7.tv.ui.screens.LoginScreen
@@ -109,6 +109,9 @@ fun Family7TVApp(
 
     // Bestaande sessie controleren en de lijst van het account ophalen bij Family7
     LaunchedEffect(Unit) {
+        // De catalogus van de vorige keer staat dan al klaar als het
+        // startscherm verschijnt; ophalen bij Family7 gebeurt daarna stil.
+        launch { catalogRepo.restoreSnapshots() }
         val session = authRepo.checkSession()
         currentSession = session
         if (session.isLoggedIn) {

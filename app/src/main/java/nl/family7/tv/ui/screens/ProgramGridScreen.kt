@@ -26,7 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import nl.family7.tv.data.ProgramItem
+import nl.family7.core.data.ProgramItem
 import nl.family7.tv.ui.components.Family7Mark
 import nl.family7.tv.ui.components.SkeletonGrid
 import nl.family7.tv.ui.components.TVButton

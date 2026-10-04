@@ -1,4 +1,4 @@
-package nl.family7.tv.data
+package nl.family7.core.data
 
 import android.content.Context
 import android.content.SharedPreferences

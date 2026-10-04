@@ -1,4 +1,4 @@
-package nl.family7.tv.data
+package nl.family7.core.data
 
 import okhttp3.Cookie
 import okhttp3.HttpUrl.Companion.toHttpUrl

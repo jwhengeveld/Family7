@@ -1,4 +1,4 @@
-package nl.family7.tv.data
+package nl.family7.core.data
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
@@ -18,8 +18,40 @@ class Family7VideoRepository(appContext: Context) {
 
     fun cachedDetail(slug: String): ProgramDetail? = synchronized(detailCache) { detailCache[slug] }
 
+    /**
+     * Kort onthouden stream-adressen per aflevering. Daarmee kan een scherm het
+     * adres al ophalen voordat iemand op afspelen drukt (de knop start dan
+     * meteen), en hoeft casten het niet nog eens op te zoeken. Kort, omdat het
+     * token in het adres van Streampartner na een tijd verloopt.
+     */
+    private val streamCache = HashMap<String, TimedCache<String>>()
+
     companion object {
         private const val BASE_URL = "https://www.family7.nl"
+        private const val STREAM_URL_TTL_MS = 2 * 60_000L
+    }
+
+    /**
+     * Zoekt het stream-adres van een aflevering op de achtergrond alvast op.
+     * Een mislukking is hier geen fout: afspelen probeert het gewoon opnieuw.
+     */
+    suspend fun prefetchStreamUrl(videoSlugOrUrl: String) {
+        resolveEpisodeStreamUrl(videoSlugOrUrl)
+    }
+
+    /**
+     * Het stream-adres van een aflevering. [forceFresh] slaat het onthouden
+     * adres over, voor als de speler meldt dat het oude adres niet meer werkt.
+     */
+    suspend fun resolveEpisodeStreamUrl(
+        videoSlugOrUrl: String,
+        forceFresh: Boolean = false
+    ): Result<String> {
+        val cache = synchronized(streamCache) {
+            streamCache.getOrPut(videoSlugOrUrl) { TimedCache(STREAM_URL_TTL_MS) }
+        }
+        if (!forceFresh) cache.fresh()?.let { return Result.success(it) }
+        return fetchEpisodeStreamUrl(videoSlugOrUrl).onSuccess { if (it.isNotEmpty()) cache.put(it) }
     }
 
     suspend fun getProgramDetail(slug: String): Result<ProgramDetail> = withContext(Dispatchers.IO) {
@@ -133,7 +165,7 @@ class Family7VideoRepository(appContext: Context) {
         )
     }
 
-    suspend fun resolveEpisodeStreamUrl(videoSlugOrUrl: String): Result<String> = withContext(Dispatchers.IO) {
+    private suspend fun fetchEpisodeStreamUrl(videoSlugOrUrl: String): Result<String> = withContext(Dispatchers.IO) {
         try {
             val url = if (videoSlugOrUrl.startsWith("http")) videoSlugOrUrl else "$BASE_URL/video/$videoSlugOrUrl"
             val req = Request.Builder().url(url).build()

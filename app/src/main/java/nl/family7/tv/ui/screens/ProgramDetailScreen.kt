@@ -40,10 +40,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import nl.family7.tv.data.EpisodeItem
-import nl.family7.tv.data.Family7VideoRepository
-import nl.family7.tv.data.ProgramDetail
-import nl.family7.tv.data.ProgramItem
+import nl.family7.core.data.EpisodeItem
+import nl.family7.core.data.Family7VideoRepository
+import nl.family7.core.data.ProgramDetail
+import nl.family7.core.data.ProgramItem
 import nl.family7.tv.ui.components.Family7Mark
 import nl.family7.tv.ui.components.SkeletonProgramDetail
 import nl.family7.tv.ui.components.TVButton

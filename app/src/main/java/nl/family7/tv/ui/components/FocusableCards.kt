@@ -39,9 +39,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import nl.family7.tv.data.EpisodeItem
-import nl.family7.tv.data.displayLabel
-import nl.family7.tv.data.ProgramItem
+import nl.family7.core.data.EpisodeItem
+import nl.family7.core.data.displayLabel
+import nl.family7.core.data.ProgramItem
 import nl.family7.tv.ui.theme.DarkSurfaceVariant
 import nl.family7.tv.ui.theme.Family7Red
 import nl.family7.tv.ui.theme.TextPrimary

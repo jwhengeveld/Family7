@@ -52,8 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import nl.family7.tv.R
-import nl.family7.tv.data.Family7AuthRepository
-import nl.family7.tv.data.UserSession
+import nl.family7.core.data.Family7AuthRepository
+import nl.family7.core.data.UserSession
 import nl.family7.tv.ui.components.Family7Logo
 import nl.family7.tv.ui.components.TVButton
 import nl.family7.tv.ui.theme.Family7Blue

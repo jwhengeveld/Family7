@@ -1,4 +1,4 @@
-package nl.family7.tv.data
+package nl.family7.core.data
 
 import android.os.SystemClock
 
@@ -17,22 +17,38 @@ class TimedCache<T>(
 ) {
     @Volatile private var value: T? = null
     @Volatile private var storedAt = 0L
+    @Volatile private var seeded = false
 
     fun snapshot(): T? = value
 
     fun fresh(): T? {
         val v = value ?: return null
+        if (seeded) return null
         return if (clock() - storedAt < ttlMs) v else null
     }
 
     fun put(v: T) {
         value = v
         storedAt = clock()
+        seeded = false
+    }
+
+    /**
+     * Vult de cache met een waarde uit een vorige sessie (van schijf). Die
+     * waarde vult een scherm meteen, maar telt nooit als vers: het eerste
+     * ophalen gaat dus altijd nog naar het netwerk. Een waarde die er al is
+     * wint, want die is nieuwer.
+     */
+    fun seed(v: T) {
+        if (value != null) return
+        value = v
+        seeded = true
     }
 
     fun clear() {
         value = null
         storedAt = 0L
+        seeded = false
     }
 }
 

@@ -1,7 +1,9 @@
-package nl.family7.tv.data
+package nl.family7.core.data
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.jsoup.Jsoup
@@ -30,11 +32,29 @@ class Family7CatalogRepository(appContext: Context) {
     val azCache = TimedCache<List<ProgramItem>>(CATALOG_TTL_MS)
     val kidsCache = TimedCache<List<ProgramItem>>(CATALOG_TTL_MS)
 
-    /** Wist de cache in het geheugen, bijvoorbeeld na uitloggen. */
+    /** De catalogus van de vorige sessie, voor een koude start zonder laadscherm. */
+    private val snapshots = CatalogSnapshotStore(context)
+
+    /**
+     * Wist de cache in het geheugen en op schijf. Bedoeld voor het uitloggen:
+     * de catalogus van een account blijft niet achter voor de volgende.
+     */
     fun clearMemoryCache() {
         homeCache.clear()
         azCache.clear()
         kidsCache.clear()
+        snapshots.clear()
+    }
+
+    /**
+     * Laadt de catalogus van de vorige sessie van schijf in de caches, zonder
+     * dat die als vers telt. Een scherm kan daarmee meteen iets tonen terwijl
+     * het eerste ophalen nog loopt. Veilig om vaker aan te roepen.
+     */
+    suspend fun restoreSnapshots() = withContext(Dispatchers.IO) {
+        if (homeCache.snapshot() == null) snapshots.readRows(SNAPSHOT_HOME)?.let(homeCache::seed)
+        if (azCache.snapshot() == null) snapshots.readItems(SNAPSHOT_AZ)?.let(azCache::seed)
+        if (kidsCache.snapshot() == null) snapshots.readItems(SNAPSHOT_KIDS)?.let(kidsCache::seed)
     }
 
     companion object {
@@ -44,6 +64,10 @@ class Family7CatalogRepository(appContext: Context) {
         private const val PLUS_AZ_URL = "$BASE_URL/plus/a-z?title=All"
 
         private const val KEY_KIDS_URL = "kids_url"
+
+        private const val SNAPSHOT_HOME = "home"
+        private const val SNAPSHOT_AZ = "az"
+        private const val SNAPSHOT_KIDS = "kids"
 
         /** Rijen die de app zelf al bovenaan toont, om dubbelingen te voorkomen. */
         private val SUPPRESSED_ROW_TITLES = setOf("mijn lijst", "mijn lijstje")
@@ -64,16 +88,20 @@ class Family7CatalogRepository(appContext: Context) {
     suspend fun getOnDemandHome(forceRefresh: Boolean = false): Result<List<CategoryRow>> = withContext(Dispatchers.IO) {
         if (!forceRefresh) homeCache.fresh()?.let { return@withContext Result.success(it) }
         try {
-            val doc = fetchDocument(PLUS_HOME_URL)
+            // De startpagina en "Nieuw toegevoegd" (een eigen pagina) tegelijk
+            // ophalen: dat scheelt een volle netwerkronde voor het eerste beeld.
+            val (doc, newItems) = coroutineScope {
+                val newest = async { runCatching { parseCardsFromDoc(fetchDocument(PLUS_NIEUW_URL)) }.getOrNull() }
+                val home = async { fetchDocument(PLUS_HOME_URL) }
+                home.await() to newest.await()
+            }
             val rows = mutableListOf<CategoryRow>()
 
             parseHero(doc)?.let { hero ->
                 rows.add(CategoryRow(id = "uitgelicht", title = "Uitgelicht", items = listOf(hero)))
             }
 
-            // "Nieuw toegevoegd" staat op een eigen pagina.
-            runCatching { parseCardsFromDoc(fetchDocument(PLUS_NIEUW_URL)) }
-                .getOrNull()
+            newItems
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { items ->
                     rows.add(
@@ -97,6 +125,9 @@ class Family7CatalogRepository(appContext: Context) {
             }
 
             homeCache.put(rows)
+            // Een lege uitkomst (bijvoorbeeld een sessie die net verliep) mag de
+            // laatst goede catalogus op schijf niet overschrijven.
+            if (rows.any { it.items.isNotEmpty() }) snapshots.writeRows(SNAPSHOT_HOME, rows)
             Result.success(rows)
         } catch (e: Exception) {
             Result.failure(e)
@@ -203,6 +234,7 @@ class Family7CatalogRepository(appContext: Context) {
                 Result.failure(Exception("Er zijn nu geen kinderprogramma's beschikbaar."))
             } else {
                 kidsCache.put(items)
+                snapshots.writeItems(SNAPSHOT_KIDS, items)
                 Result.success(items)
             }
         } catch (e: UnauthorizedException) {
@@ -235,7 +267,10 @@ class Family7CatalogRepository(appContext: Context) {
         if (!forceRefresh) azCache.fresh()?.let { return@withContext Result.success(it) }
         try {
             val items = fetchAllPages(PLUS_AZ_URL)
-            if (items.isNotEmpty()) azCache.put(items)
+            if (items.isNotEmpty()) {
+                azCache.put(items)
+                snapshots.writeItems(SNAPSHOT_AZ, items)
+            }
             Result.success(items)
         } catch (e: Exception) {
             Result.failure(e)
@@ -253,7 +288,9 @@ class Family7CatalogRepository(appContext: Context) {
 
     suspend fun searchPrograms(query: String): Result<List<ProgramItem>> = withContext(Dispatchers.IO) {
         try {
-            val all = fetchAllPages(PLUS_AZ_URL)
+            // Zoeken filtert de A-Z-lijst; die hoeft niet bij elke letter opnieuw
+            // over het netwerk.
+            val all = azCache.fresh() ?: fetchAllPages(PLUS_AZ_URL).also { if (it.isNotEmpty()) azCache.put(it) }
             if (query.isBlank()) return@withContext Result.success(all)
             val q = query.trim().lowercase()
             Result.success(all.filter { it.title.lowercase().contains(q) || it.slug.contains(q) })

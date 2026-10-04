@@ -60,10 +60,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import nl.family7.tv.data.CategoryRow
-import nl.family7.tv.data.BACKGROUND_REFRESH_MS
-import nl.family7.tv.data.Family7CatalogRepository
-import nl.family7.tv.data.ProgramItem
+import nl.family7.core.data.CategoryRow
+import nl.family7.core.data.BACKGROUND_REFRESH_MS
+import nl.family7.core.data.Family7CatalogRepository
+import nl.family7.core.data.ProgramItem
 import nl.family7.tv.ui.components.Family7Mark
 import nl.family7.tv.ui.components.SkeletonHomeScreen
 import nl.family7.tv.ui.components.TVButton

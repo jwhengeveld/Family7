@@ -1,8 +1,8 @@
-package nl.family7.tv.data
+package nl.family7.core.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import nl.family7.tv.BuildConfig
+import nl.family7.core.BuildConfig
 import okhttp3.Cache
 import okhttp3.Cookie
 import okhttp3.CookieJar

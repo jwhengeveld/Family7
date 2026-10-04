@@ -1,4 +1,4 @@
-package nl.family7.tv.data
+package nl.family7.core.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

@@ -37,8 +37,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import nl.family7.tv.R
-import nl.family7.tv.data.Family7LiveRepository
-import nl.family7.tv.data.LiveStreamInfo
+import nl.family7.core.data.Family7LiveRepository
+import nl.family7.core.data.LiveStreamInfo
 import nl.family7.tv.ui.components.TVButton
 import nl.family7.tv.ui.player.KeepScreenOn
 import nl.family7.tv.ui.player.PauseOnBackground
