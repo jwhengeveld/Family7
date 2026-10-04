@@ -1,0 +1,140 @@
+import SwiftUI
+
+@main
+struct Family7App: App {
+    @State private var model: AppModel
+
+    init() {
+        // Cast eerst: de speler meldt zich bij de Cast-sessies aan.
+        CastSetup.start()
+        _model = State(initialValue: AppModel())
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            RootView()
+                .environment(model)
+                .preferredColorScheme(.dark)
+                .tint(.family7Red)
+        }
+    }
+}
+
+/// Op welke overzichtspagina een rij met programma's uitkomt.
+enum GridDestination: Hashable {
+    case kids
+    case all
+    case page(url: String, title: String)
+}
+
+struct RootView: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var model = model
+        Group {
+            switch model.authState {
+            case .checking:
+                Color.family7Background.ignoresSafeArea()
+                    .overlay(Image("Family7Logo").resizable().scaledToFit().frame(width: 160))
+            case .loggedOut:
+                LoginView()
+            case .loggedIn:
+                MainTabs()
+            }
+        }
+        .fullScreenCover(isPresented: $model.showPlayer) {
+            PlayerView()
+        }
+        .onChange(of: model.network.reconnects) {
+            model.playback.networkRestored()
+        }
+        .onOpenURL { model.open($0) }
+        #if DEBUG
+        // Alleen voor testen: een deep link als opstartargument, zodat een
+        // simulator zonder scherm de app kan besturen:
+        // xcrun simctl launch <sim> nl.family7.ios -family7DeepLink family7://live
+        .task(id: model.authState == .loggedIn) {
+            guard model.authState == .loggedIn,
+                  let link = UserDefaults.standard.string(forKey: "family7DeepLink"),
+                  let url = URL(string: link) else { return }
+            model.open(url)
+        }
+        #endif
+    }
+}
+
+struct MainTabs: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var model = model
+        TabView(selection: $model.selectedTab) {
+            NavigationStack(path: $model.homePath) { HomeView().family7Destinations() }.miniCastBar()
+                .tabItem { Label("Start", systemImage: "house.fill") }.tag(AppTab.home)
+            NavigationStack { LiveView() }.miniCastBar()
+                .tabItem { Label("Live", systemImage: "dot.radiowaves.left.and.right") }.tag(AppTab.live)
+            NavigationStack { SearchView().family7Destinations() }.miniCastBar()
+                .tabItem { Label("Zoeken", systemImage: "magnifyingglass") }.tag(AppTab.search)
+            NavigationStack { MyListView().family7Destinations() }.miniCastBar()
+                .tabItem { Label("Mijn lijst", systemImage: "bookmark.fill") }.tag(AppTab.myList)
+        }
+    }
+}
+
+extension View {
+    /// Programmapagina's en overzichten zijn vanuit elk tabblad te openen.
+    func family7Destinations() -> some View {
+        navigationDestination(for: ProgramItem.self) { ProgramView(preview: $0) }
+            .navigationDestination(for: GridDestination.self) { GridView(destination: $0) }
+    }
+
+    /// Tijdens het casten een balk onderin, zodat de bediening binnen bereik blijft.
+    func miniCastBar() -> some View {
+        modifier(MiniCastBarModifier())
+    }
+}
+
+private struct MiniCastBarModifier: ViewModifier {
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            if model.playback.isCasting, model.playback.request != nil {
+                MiniCastBar()
+            }
+        }
+    }
+}
+
+struct MiniCastBar: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let playback = model.playback
+        HStack(spacing: 12) {
+            RemoteImage(url: playback.artworkURL)
+                .frame(width: 64, height: 36)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(playback.title).font(.subheadline).lineLimit(1)
+                Label(playback.castDeviceName ?? "Casten", systemImage: "tv")
+                    .font(.caption)
+                    .foregroundStyle(Color.family7Secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Button {
+                playback.togglePlayPause()
+            } label: {
+                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill").font(.title3)
+            }
+            .accessibilityLabel(playback.isPlaying ? "Pauzeren" : "Afspelen")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        .contentShape(Rectangle())
+        .onTapGesture { model.showPlayer = true }
+    }
+}
