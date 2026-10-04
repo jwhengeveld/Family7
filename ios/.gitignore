@@ -1,0 +1,8 @@
+# Google Cast SDK: via scripts/fetch-cast-sdk.sh
+/Vendor/
+xcuserdata/
+DerivedData/
+build/
+.build/
+.DS_Store
+._*
