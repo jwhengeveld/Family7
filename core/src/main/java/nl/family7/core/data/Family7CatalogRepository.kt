@@ -90,8 +90,8 @@ class Family7CatalogRepository(appContext: Context) {
             // De startpagina en "Nieuw toegevoegd" (een eigen pagina) tegelijk
             // ophalen: dat scheelt een volle netwerkronde voor het eerste beeld.
             val (doc, newItems) = coroutineScope {
-                val newest = async { runCatching { Family7Parser.programCards(pages.document(PLUS_NIEUW_URL)) }.getOrNull() }
-                val home = async { pages.document(PLUS_HOME_URL) }
+                val newest = async { runCatching { Family7Parser.programCards(pages.document(PLUS_NIEUW_URL, fresh = forceRefresh)) }.getOrNull() }
+                val home = async { pages.document(PLUS_HOME_URL, fresh = forceRefresh) }
                 home.await() to newest.await()
             }
 
@@ -108,7 +108,7 @@ class Family7CatalogRepository(appContext: Context) {
 
             // Terugval als de rijen niet meer te lezen zijn: toon dan tenminste alles.
             if (rows.none { it.items.isNotEmpty() && it.id != "uitgelicht" }) {
-                val all = fetchAllPages(PLUS_AZ_URL)
+                val all = fetchAllPages(PLUS_AZ_URL, forceRefresh)
                 if (all.isNotEmpty()) rows.add(CategoryRow(id = "alle", title = "Alle programma's", items = all))
             }
             keepBestOf(homeCache, rows, SNAPSHOT_HOME) { list -> list.sumOf { it.items.size } }
@@ -126,8 +126,10 @@ class Family7CatalogRepository(appContext: Context) {
         size: (List<T>) -> Int = { it.size }
     ): List<T> {
         val previous = memory.snapshot()
-        if (!Plausibility.acceptable(previous?.let(size), size(fresh)) && previous != null) {
-            // Niet als vers markeren: bij de volgende gelegenheid opnieuw proberen.
+        if (previous != null && !Plausibility.accept(snapshotName, size(previous), size(fresh))) {
+            // Eenmalige hapering: de vorige blijft staan, niet als vers gemarkeerd,
+            // dus de volgende keer wordt opnieuw gekeken. Geeft de site dan
+            // hetzelfde, dan wint de site.
             return previous
         }
         memory.put(fresh)
@@ -177,7 +179,7 @@ class Family7CatalogRepository(appContext: Context) {
                 ?: return@withContext Result.failure(
                     Exception("Geen kidssectie gevonden. Controleer of u bent ingelogd met een Family7 Plus account.")
                 )
-            val items = keepBestOf(kidsCache, fetchAllPages(url), SNAPSHOT_KIDS)
+            val items = keepBestOf(kidsCache, fetchAllPages(url, forceRefresh), SNAPSHOT_KIDS)
             if (items.isEmpty()) Result.failure(Exception("Er zijn nu geen kinderprogramma's beschikbaar."))
             else Result.success(items)
         } catch (e: UnauthorizedException) {
@@ -207,12 +209,13 @@ class Family7CatalogRepository(appContext: Context) {
 
     suspend fun getAllAZPrograms(forceRefresh: Boolean = false): Result<List<ProgramItem>> = withContext(Dispatchers.IO) {
         if (!forceRefresh) azCache.fresh()?.let { return@withContext Result.success(it) }
-        runCatching { keepBestOf(azCache, fetchAllPages(PLUS_AZ_URL), SNAPSHOT_AZ) }
+        runCatching { keepBestOf(azCache, fetchAllPages(PLUS_AZ_URL, forceRefresh), SNAPSHOT_AZ) }
     }
 
     /** Haalt alle programma's van een willekeurige overzichtspagina. */
     suspend fun getProgramsFrom(url: String): Result<List<ProgramItem>> = withContext(Dispatchers.IO) {
-        runCatching { fetchAllPages(url) }
+        // Een overzicht wordt bij elk bezoek opnieuw bij de site opgehaald.
+        runCatching { fetchAllPages(url, fresh = true) }
     }
 
     suspend fun searchPrograms(query: String): Result<List<ProgramItem>> = withContext(Dispatchers.IO) {
@@ -232,8 +235,8 @@ class Family7CatalogRepository(appContext: Context) {
      * laatste pagina, dan worden de vervolgpagina's tegelijk opgehaald (met een
      * bovengrens); anders één voor één, tot er niets nieuws meer bij komt.
      */
-    private suspend fun fetchAllPages(startUrl: String): List<ProgramItem> {
-        val first = pages.document(startUrl)
+    private suspend fun fetchAllPages(startUrl: String, fresh: Boolean = false): List<ProgramItem> {
+        val first = pages.document(startUrl, fresh = fresh)
         val collected = LinkedHashMap<String, ProgramItem>()
         Family7Parser.programCards(first).forEach { collected.putIfAbsent(it.slug, it) }
         if (!Family7Parser.hasNextPage(first)) return collected.values.toList()
@@ -243,7 +246,7 @@ class Family7CatalogRepository(appContext: Context) {
             val gate = Semaphore(PAGE_CONCURRENCY)
             val rest = coroutineScope {
                 (1..minOf(last, MAX_PAGES - 1)).map { page ->
-                    async { gate.withPermit { runCatching { pages.document(pageUrl(startUrl, page)) }.getOrNull() } }
+                    async { gate.withPermit { runCatching { pages.document(pageUrl(startUrl, page), fresh = fresh) }.getOrNull() } }
                 }.awaitAll()
             }
             rest.filterNotNull().forEach { doc -> Family7Parser.programCards(doc).forEach { collected.putIfAbsent(it.slug, it) } }
@@ -253,7 +256,7 @@ class Family7CatalogRepository(appContext: Context) {
         var page = 1
         var doc: Document = first
         while (page < MAX_PAGES && Family7Parser.hasNextPage(doc)) {
-            doc = runCatching { pages.document(pageUrl(startUrl, page)) }.getOrNull() ?: break
+            doc = runCatching { pages.document(pageUrl(startUrl, page), fresh = fresh) }.getOrNull() ?: break
             val before = collected.size
             Family7Parser.programCards(doc).forEach { collected.putIfAbsent(it.slug, it) }
             if (collected.size == before) break

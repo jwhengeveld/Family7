@@ -33,7 +33,7 @@ class Family7MyListRepository(appContext: Context) {
     suspend fun refresh(): Result<List<ProgramItem>> = withContext(Dispatchers.IO) {
         try {
             // Altijd vers: net na toevoegen of verwijderen moet de lijst kloppen.
-            val items = Family7Parser.myList(pages.document(MY_LIST_URL, maxAgeMs = 0))
+            val items = Family7Parser.myList(pages.document(MY_LIST_URL, fresh = true))
             _items.value = items
             Result.success(items)
         } catch (e: UnauthorizedException) {

@@ -27,6 +27,24 @@ class RobustnessTest {
         assertTrue(Plausibility.acceptable(previousCount = 0, newCount = 0))
     }
 
+    @Test
+    fun `de site is de bron van waarheid - een bevestigde verandering wint`() {
+        val key = "test-" + System.nanoTime()
+        // Eerste keer verdacht mager: de vorige blijft staan (eenmalige hapering).
+        assertFalse(Plausibility.accept(key, previousCount = 196, newCount = 12))
+        // De site geeft opnieuw hetzelfde: dat is de werkelijkheid.
+        assertTrue(Plausibility.accept(key, previousCount = 196, newCount = 12))
+    }
+
+    @Test
+    fun `een hapering die herstelt laat geen sporen na`() {
+        val key = "test-" + System.nanoTime()
+        assertFalse(Plausibility.accept(key, previousCount = 196, newCount = 0))
+        assertTrue(Plausibility.accept(key, previousCount = 196, newCount = 197))
+        // Een volgende hapering begint weer opnieuw.
+        assertFalse(Plausibility.accept(key, previousCount = 197, newCount = 0))
+    }
+
     // ------------------------------------------------------- stream-tokens
 
     @Test

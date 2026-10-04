@@ -55,10 +55,11 @@ class PageFetcher(
     private val recent = HashMap<String, Pair<Long, Page>>()
 
     /** De ruwe pagina, gedeeld met gelijktijdige verzoeken en kort onthouden. */
-    suspend fun page(url: String, referer: String = DEFAULT_REFERER, maxAgeMs: Long = MEMO_MS): Page {
+    suspend fun page(url: String, referer: String = DEFAULT_REFERER, maxAgeMs: Long = MEMO_MS, fresh: Boolean = false): Page {
         val pending = synchronized(lock) {
-            recent[url]?.let { (at, page) -> if (now() - at < maxAgeMs) return page }
-            inFlight[url] ?: scope.async { download(url, referer) }.also { inFlight[url] = it }
+            if (!fresh) recent[url]?.let { (at, page) -> if (now() - at < maxAgeMs) return page }
+            // Een verzoek dat al loopt is per definitie vers genoeg om te delen.
+            inFlight[url] ?: scope.async { download(url, referer, fresh) }.also { inFlight[url] = it }
         }
         try {
             val page = pending.await()
@@ -74,8 +75,13 @@ class PageFetcher(
      * inlogpagina of een anonieme pagina teruggeeft terwijl we ingelogd zouden
      * moeten zijn; gooit [UnauthorizedException] bij 401/403.
      */
-    suspend fun document(url: String, referer: String = DEFAULT_REFERER, maxAgeMs: Long = MEMO_MS): Document {
-        val page = page(url, referer, maxAgeMs)
+    suspend fun document(
+        url: String,
+        referer: String = DEFAULT_REFERER,
+        maxAgeMs: Long = MEMO_MS,
+        fresh: Boolean = false
+    ): Document {
+        val page = page(url, referer, maxAgeMs, fresh)
         if (page.code == 401 || page.code == 403) {
             forget(url)
             if (hasSessionCookie()) SessionEvents.reportExpired()
@@ -106,8 +112,11 @@ class PageFetcher(
 
     fun clear() = synchronized(lock) { recent.clear() }
 
-    private fun download(url: String, referer: String): Page {
-        val request = Request.Builder().url(url).header("Referer", referer).build()
+    private fun download(url: String, referer: String, fresh: Boolean): Page {
+        val request = Request.Builder().url(url).header("Referer", referer)
+            // Vers betekent vers: ook de HTTP-cache op schijf overslaan.
+            .apply { if (fresh) cacheControl(okhttp3.CacheControl.FORCE_NETWORK) }
+            .build()
         client.newCall(request).execute().use { response ->
             return Page(
                 html = response.body?.string().orEmpty(),
@@ -143,15 +152,38 @@ class PageFetcher(
 class UnauthorizedException : IOException("Niet ingelogd")
 
 /**
- * Of een nieuwe uitkomst een goede vorige mag vervangen. Een site-verbouwing
- * levert vaak een pagina op die wel laadt maar (bijna) niets oplevert; dan
- * blijft de laatst goede versie staan in plaats van dat de app leegloopt.
+ * Of een nieuwe uitkomst een goede vorige mag vervangen.
+ *
+ * De site is de bron van waarheid. Deze controle vangt alleen een eenmalige
+ * hapering op (een pagina die half laadt, of een tijdelijke storing die een
+ * lege lijst oplevert): de eerste keer dat een uitkomst verdacht mager is,
+ * blijft de vorige staan. Levert de site bij de volgende keer hetzelfde, dan is
+ * dat de werkelijkheid en wint de site, ook als er echt programma's weg zijn.
  */
 object Plausibility {
     /** Minder dan dit deel van de vorige omvang is verdacht. */
     private const val MIN_FRACTION = 0.4
     /** Onder deze vorige omvang is schommelen normaal en controleren zinloos. */
     private const val MIN_PREVIOUS = 10
+
+    /** Verdachte uitkomsten per lijst die nog op bevestiging wachten. */
+    private val pending = HashMap<String, Int>()
+
+    /**
+     * [acceptable], maar een verdachte uitkomst wordt geaccepteerd zodra de
+     * site hem een tweede keer na elkaar geeft (ongeveer dezelfde omvang).
+     */
+    @Synchronized
+    fun accept(key: String, previousCount: Int?, newCount: Int): Boolean {
+        if (acceptable(previousCount, newCount)) {
+            pending.remove(key)
+            return true
+        }
+        val earlier = pending[key]
+        val confirmed = earlier != null && kotlin.math.abs(earlier - newCount) <= maxOf(2, earlier / 10)
+        if (confirmed) pending.remove(key) else pending[key] = newCount
+        return confirmed
+    }
 
     fun acceptable(previousCount: Int?, newCount: Int): Boolean {
         if (previousCount == null || previousCount == 0) return true

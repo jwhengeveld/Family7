@@ -48,7 +48,8 @@ class Family7VideoRepository(appContext: Context) {
     suspend fun getProgramDetail(slug: String): Result<ProgramDetail> = withContext(Dispatchers.IO) {
         runCatching {
             val url = if (slug.startsWith("http")) slug else "$BASE_URL/plus/programmas/$slug"
-            val doc = pages.document(url)
+            // Altijd van de site: nieuwe afleveringen moeten er meteen bij staan.
+            val doc = pages.document(url, fresh = true)
             val base = Family7Parser.programDetailBase(doc, slug)
             val pageEpisodes = Family7Parser.episodes(doc, base.posterUrl)
             val options = Family7Parser.seasonOptions(doc)
@@ -85,7 +86,7 @@ class Family7VideoRepository(appContext: Context) {
             val previous = cachedDetail(slug)
             val previousCount = previous?.seasons?.sumOf { it.episodes.size }
             val freshCount = seasons.sumOf { it.episodes.size }
-            if (previous != null && !Plausibility.acceptable(previousCount, freshCount)) {
+            if (previous != null && !Plausibility.accept("detail:$slug", previousCount, freshCount)) {
                 return@runCatching previous
             }
             synchronized(detailCache) { detailCache[slug] = detail }
@@ -99,7 +100,7 @@ class Family7VideoRepository(appContext: Context) {
 
     /** Eén seizoen via het eindpunt dat de site zelf gebruikt; het antwoord is JSON met kant-en-klare HTML. */
     private suspend fun seasonEpisodes(nodeId: String, season: String, fallbackThumb: String): List<EpisodeItem> {
-        val page = pages.page("$BASE_URL/get-videos-by-season/$nodeId/$season")
+        val page = pages.page("$BASE_URL/get-videos-by-season/$nodeId/$season", fresh = true)
         val html = JSONObject(page.html).optString("renderedItems")
         return Family7Parser.episodes(Jsoup.parseBodyFragment(html, BASE_URL), fallbackThumb)
     }
@@ -138,12 +139,12 @@ class Family7VideoRepository(appContext: Context) {
         runCatching {
             val url = if (videoSlugOrUrl.startsWith("http")) videoSlugOrUrl else "$BASE_URL/video/$videoSlugOrUrl"
             // Een videopagina is per bezoek anders (het token); niet uit de korte cache.
-            val page = pages.page(url, maxAgeMs = 0)
+            val page = pages.page(url, fresh = true)
             val doc = Jsoup.parse(page.html, page.finalUrl)
 
             val player = Family7Parser.playerUrl(doc, page.html)
             if (player.isNotEmpty()) {
-                val playerPage = pages.page(player, referer = BASE_URL, maxAgeMs = 0)
+                val playerPage = pages.page(player, referer = BASE_URL, fresh = true)
                 StreampartnerPlayer.streamUrlFromPlayerHtml(playerPage.html).takeIf { it.isNotEmpty() }
                     ?.let { return@runCatching it }
             }
