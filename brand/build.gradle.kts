@@ -8,7 +8,7 @@ plugins {
 // (gemaakt door art/tools/build_brand_assets.py) en het geanimeerde splashscherm.
 android {
     namespace = "nl.family7.brand"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24

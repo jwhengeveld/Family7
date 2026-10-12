@@ -26,17 +26,17 @@ val TV_VERSION_OFFSET = 1_000_000
 
 android {
     namespace = "nl.family7.tv"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = if (isTestEdition) "nl.xiappdesign.family7" else "nl.family7.tv"
         resValue("string", "app_name", "Family7")
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         // In de testeditie delen telefoon en tv één app in Play; daar moet elk
         // versienummer uniek zijn, dus de tv-builds zitten in een eigen reeks.
-        versionCode = 16 + if (isTestEdition) TV_VERSION_OFFSET else 0
-        versionName = "1.4.3"
+        versionCode = 17 + if (isTestEdition) TV_VERSION_OFFSET else 0
+        versionName = "1.4.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

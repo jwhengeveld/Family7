@@ -34,15 +34,15 @@ val isTestEdition = project.findProperty("family7.edition") == "test"
 
 android {
     namespace = "nl.family7.mobile"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = if (isTestEdition) "nl.xiappdesign.family7" else "nl.family7.mobile"
         resValue("string", "app_name", "Family7")
         minSdk = 24
-        targetSdk = 35
-        versionCode = 11
-        versionName = "1.4.3"
+        targetSdk = 36
+        versionCode = 12
+        versionName = "1.4.4"
 
         buildConfigField("String", "CAST_RECEIVER_ID", "\"$castReceiverId\"")
     }
