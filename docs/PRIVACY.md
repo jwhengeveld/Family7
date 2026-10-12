@@ -66,6 +66,20 @@ wijzigen of laten verwijderen, dan loopt dat via Family7 zelf; deze app heeft
 er geen aparte kopie van. Het verwijderen van de app wist alles wat er lokaal
 stond.
 
+## Account en gegevens verwijderen
+
+De Family7-app (Xi Appdesign) maakt zelf geen accounts aan: je logt in met je
+bestaande Family7+-account.
+
+- **Gegevens in de app verwijderen:** tik op "Uitloggen" (startscherm, menu ⋮).
+  Dat wist meteen je sessie, je bewaarde lijsten, de programmagids en je
+  zoekgeschiedenis van het toestel. De app verwijderen wist ook alles.
+- **Je Family7+-account verwijderen:** dat account is van Family7. Vraag de
+  verwijdering aan via https://www.family7.nl/service/contact. Family7 verwijdert
+  dan je account, je lijst en je kijkgeschiedenis volgens zijn eigen beleid.
+- De maker van de app bewaart geen gegevens van je, dus daar valt niets te
+  verwijderen. Vragen: info@xiwebdesign.nl.
+
 ## Kinderen
 
 De app bevat een kinderrubriek met de programma's die Family7 daarvoor
