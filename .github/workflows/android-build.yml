@@ -127,7 +127,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # De testeditie voor een eigen Play-account (nl.xiappdesign.family voor
+      # De testeditie voor een eigen Play-account (nl.xiappdesign.family7 voor
       # telefoon én tv, één app in Play met een Android TV-track): dezelfde code
       # met een eigen ID, zodat nl.family7.* vrij blijft voor Family7. Na het uploaden van de gewone build, want dit overschrijft
       # dezelfde uitvoermappen.
@@ -138,7 +138,7 @@ jobs:
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
           AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -1)
           VERSION="${GITHUB_REF_NAME#v}"
-          for PAIR in "app:androidtv:nl.xiappdesign.family" "mobile:mobile:nl.xiappdesign.family"; do
+          for PAIR in "app:androidtv:nl.xiappdesign.family7" "mobile:mobile:nl.xiappdesign.family7"; do
             MODULE=${PAIR%%:*}; REST=${PAIR#*:}; NAME=${REST%%:*}; ID=${REST#*:}
             APK=$MODULE/build/outputs/apk/release/$MODULE-release.apk
             "$APKSIGNER" verify "$APK"

@@ -1,7 +1,7 @@
 # Google Play — Family7 (testeditie)
 
 Alles voor de Play-vermelding en de gesloten test van de testeditie
-`nl.xiappdesign.family`. Dat is één app in Play: de telefoonbuild in de gewone
+`nl.xiappdesign.family7`. Dat is één app in Play: de telefoonbuild in de gewone
 tracks, de tv-build in de Android TV-track. De officiële ID's `nl.family7.*`
 blijven vrij voor Family7.
 

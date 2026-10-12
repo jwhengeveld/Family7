@@ -247,8 +247,8 @@ testeditie: dezelfde app met een eigen ID.
 
 | App | Officieel | Testeditie |
 |-----|-----------|------------|
-| Telefoon | `nl.family7.mobile` | `nl.xiappdesign.family` |
-| TV | `nl.family7.tv` | `nl.xiappdesign.family` (Android TV-track) |
+| Telefoon | `nl.family7.mobile` | `nl.xiappdesign.family7` |
+| TV | `nl.family7.tv` | `nl.xiappdesign.family7` (zelfde app en track) |
 
 In Play is de testeditie één app: de telefoonbuild in de gewone tracks, de
 tv-build in de Android TV-track. De tv-builds hebben versienummers vanaf

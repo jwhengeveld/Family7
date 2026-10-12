@@ -37,7 +37,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = if (isTestEdition) "nl.xiappdesign.family" else "nl.family7.mobile"
+        applicationId = if (isTestEdition) "nl.xiappdesign.family7" else "nl.family7.mobile"
         resValue("string", "app_name", "Family7")
         minSdk = 24
         targetSdk = 35
