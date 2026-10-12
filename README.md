@@ -240,6 +240,26 @@ van forks krijgen geen secrets en bouwen alleen debug.
 > uit te halen. Raakt de lokale keystore kwijt, dan kan geen enkele update meer
 > over een bestaande installatie heen.
 
+### Testeditie voor een eigen Play-account
+
+Om te testen via Google Play zonder de ID's van Family7 te bezetten, is er een
+testeditie: dezelfde app met een eigen ID en de naam "Family7 (test)".
+
+| App | Officieel | Testeditie |
+|-----|-----------|------------|
+| Telefoon | `nl.family7.mobile` | `nl.xiappdesign.family` |
+| TV | `nl.family7.tv` | `nl.xiappdesign.family7tv` |
+
+```bash
+./gradlew -Pfamily7.edition=test bundleRelease
+```
+
+Een pakketnaam hoort in Google Play voor altijd bij het account dat hem als
+eerste gebruikt. Zo blijft `nl.family7.*` vrij voor Family7, die de app later op
+een eigen account kan uitbrengen. Bij een tag zet de workflow ook de testeditie
+bij de release (`family7-test-mobile-v…`, `family7-test-androidtv-v…`). De
+testeditie staat naast de officiële app op een toestel, met een eigen login.
+
 De release-build gebruikt R8 met resource shrinking (TV 2,7 MB, telefoon 4,6 MB).
 De bewaarregels in `core/consumer-rules.pro` beschermen Jsoup, dat de HTML van
 family7.nl leest, en gaan vanzelf mee naar beide apps.

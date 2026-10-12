@@ -26,16 +26,22 @@ val castReceiverId: String =
     (project.findProperty("family7.castReceiverId") as String?)?.takeIf { it.isNotBlank() }
         ?: "CC1AD845"
 
+// De testversie voor een eigen Play-account: dezelfde app met een eigen ID en
+// naam, zodat nl.family7.mobile vrij blijft voor Family7 zelf.
+//   ./gradlew -Pfamily7.edition=test assembleRelease bundleRelease
+val isTestEdition = project.findProperty("family7.edition") == "test"
+
 android {
     namespace = "nl.family7.mobile"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "nl.family7.mobile"
+        applicationId = if (isTestEdition) "nl.xiappdesign.family" else "nl.family7.mobile"
+        resValue("string", "app_name", if (isTestEdition) "Family7 (test)" else "Family7")
         minSdk = 24
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.4.1"
+        versionCode = 10
+        versionName = "1.4.2"
 
         buildConfigField("String", "CAST_RECEIVER_ID", "\"$castReceiverId\"")
     }

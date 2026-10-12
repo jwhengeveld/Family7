@@ -17,16 +17,22 @@ val keystoreProperties = Properties().apply {
 }
 val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
 
+// De testversie voor een eigen Play-account: dezelfde app met een eigen ID en
+// naam, zodat nl.family7.tv vrij blijft voor Family7 zelf.
+//   ./gradlew -Pfamily7.edition=test assembleRelease bundleRelease
+val isTestEdition = project.findProperty("family7.edition") == "test"
+
 android {
     namespace = "nl.family7.tv"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "nl.family7.tv"
+        applicationId = if (isTestEdition) "nl.xiappdesign.family7tv" else "nl.family7.tv"
+        resValue("string", "app_name", if (isTestEdition) "Family7 (test)" else "Family7")
         minSdk = 24
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.4.1"
+        versionCode = 15
+        versionName = "1.4.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
