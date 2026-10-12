@@ -17,22 +17,26 @@ val keystoreProperties = Properties().apply {
 }
 val hasReleaseSigning = keystoreProperties.getProperty("storeFile") != null
 
-// De testversie voor een eigen Play-account: dezelfde app met een eigen ID en
-// naam, zodat nl.family7.tv vrij blijft voor Family7 zelf.
+// De testeditie voor een eigen Play-account: dezelfde app met een eigen ID, zodat
+// nl.family7.tv vrij blijft voor Family7 zelf. In Play is het één app met de
+// telefoon (nl.xiappdesign.family); deze tv-build gaat via de Android TV-track.
 //   ./gradlew -Pfamily7.edition=test assembleRelease bundleRelease
 val isTestEdition = project.findProperty("family7.edition") == "test"
+val TV_VERSION_OFFSET = 1_000_000
 
 android {
     namespace = "nl.family7.tv"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = if (isTestEdition) "nl.xiappdesign.family7tv" else "nl.family7.tv"
-        resValue("string", "app_name", if (isTestEdition) "Family7 (test)" else "Family7")
+        applicationId = if (isTestEdition) "nl.xiappdesign.family" else "nl.family7.tv"
+        resValue("string", "app_name", "Family7")
         minSdk = 24
         targetSdk = 35
-        versionCode = 15
-        versionName = "1.4.2"
+        // In de testeditie delen telefoon en tv één app in Play; daar moet elk
+        // versienummer uniek zijn, dus de tv-builds zitten in een eigen reeks.
+        versionCode = 16 + if (isTestEdition) TV_VERSION_OFFSET else 0
+        versionName = "1.4.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -1,10 +1,11 @@
-# Privacyverklaring — Family7 Android TV
+# Privacyverklaring — Family7-apps
 
-_Laatst bijgewerkt: 5 september 2026_
+_Laatst bijgewerkt: 12 oktober 2026_
 
-Deze app is een onafhankelijk gemaakte televisieclient voor de dienst van
-Family7. Hij is geen officiële uitgave van Family7. Deze verklaring beschrijft
-wat de app met uw gegevens doet.
+Deze verklaring geldt voor de Family7-apps voor telefoon en tablet (Android en
+iOS) en voor Android TV. Het zijn onafhankelijk gemaakte apps voor de dienst
+van Family7, geen officiële uitgave van Family7. Deze verklaring beschrijft wat
+de apps met uw gegevens doen.
 
 ## Kort samengevat
 
@@ -23,10 +24,16 @@ Family7 gebruikt, precies zoals wanneer u de website in een browser opent.
 | Uw gebruikersnummer bij Family7 | Bevestigen dat de sessie nog geldig is | Versleuteld op het toestel |
 | "Mijn lijst" | Uw eigen lijst tonen en bijwerken | Staat bij Family7; de app leest en schrijft dezelfde lijst als de website |
 | Opgevraagde pagina's en beelden | Sneller laden | Tijdelijke cache op het toestel, wordt door Android zelf opgeruimd |
+| Programma's en programmagids | Meteen iets tonen, ook zonder netwerk | Lokaal op het toestel; wordt ververst van family7.nl |
+| Laatste zoekopdrachten | Snel opnieuw zoeken | Alleen lokaal op het toestel; te wissen in het zoekscherm |
+| Wat er speelt bij casten | Een programma op uw Chromecast of Google TV zetten | Gaat via Google Cast naar uw eigen tv |
 
-De app vraagt twee rechten: internettoegang en het uitlezen van de
-netwerkstatus. Geen locatie, geen contacten, geen microfoon, geen camera, geen
-opslag, geen apparaat-identificatie.
+De tv-app vraagt twee rechten: internettoegang en het uitlezen van de
+netwerkstatus. De telefoonapp vraagt daarnaast twee technische rechten om te
+kunnen blijven afspelen: het toestel wakker houden tijdens het kijken, en een
+voorgronddienst voor de bediening van wat er speelt (ook tijdens het casten).
+Geen locatie, geen contacten, geen microfoon, geen camera, geen opslag, geen
+apparaat-identificatie.
 
 ## Hoe de aanmeldsessie beveiligd is
 
@@ -46,6 +53,8 @@ gebruikt:
 
 - **Family7** (`www.family7.nl`) — aanmelden, catalogus, uw lijst.
 - **Streampartner** (`*.streampartner.nl`) — de videostream zelf.
+- **Google Cast**, alleen als u zelf naar een Chromecast of Google TV cast — het
+  adres van de stream en de titel gaan dan naar uw eigen tv.
 
 De maker van de app ontvangt geen enkel gegeven. Er is geen tussenliggende
 server.

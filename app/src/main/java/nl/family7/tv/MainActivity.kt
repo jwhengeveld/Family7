@@ -76,6 +76,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Schermvullend: op een tv zijn er geen systeembalken, maar draait de app
+        // op een ander scherm (zoals een tablet of de emulator), dan ook niet.
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
 
         authRepo = Family7AuthRepository(this)
         liveRepo = Family7LiveRepository(this)

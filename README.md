@@ -243,12 +243,16 @@ van forks krijgen geen secrets en bouwen alleen debug.
 ### Testeditie voor een eigen Play-account
 
 Om te testen via Google Play zonder de ID's van Family7 te bezetten, is er een
-testeditie: dezelfde app met een eigen ID en de naam "Family7 (test)".
+testeditie: dezelfde app met een eigen ID.
 
 | App | Officieel | Testeditie |
 |-----|-----------|------------|
 | Telefoon | `nl.family7.mobile` | `nl.xiappdesign.family` |
-| TV | `nl.family7.tv` | `nl.xiappdesign.family7tv` |
+| TV | `nl.family7.tv` | `nl.xiappdesign.family` (Android TV-track) |
+
+In Play is de testeditie één app: de telefoonbuild in de gewone tracks, de
+tv-build in de Android TV-track. De tv-builds hebben versienummers vanaf
+1.000.000, zodat ze nooit botsen met die van de telefoon.
 
 ```bash
 ./gradlew -Pfamily7.edition=test bundleRelease
@@ -257,8 +261,8 @@ testeditie: dezelfde app met een eigen ID en de naam "Family7 (test)".
 Een pakketnaam hoort in Google Play voor altijd bij het account dat hem als
 eerste gebruikt. Zo blijft `nl.family7.*` vrij voor Family7, die de app later op
 een eigen account kan uitbrengen. Bij een tag zet de workflow ook de testeditie
-bij de release (`family7-test-mobile-v…`, `family7-test-androidtv-v…`). De
-testeditie staat naast de officiële app op een toestel, met een eigen login.
+bij de release (`family7-test-mobile-v…`, `family7-test-androidtv-v…`). Alles
+voor de Play-vermelding en de gesloten test staat in [`store/`](store/).
 
 De release-build gebruikt R8 met resource shrinking (TV 2,7 MB, telefoon 4,6 MB).
 De bewaarregels in `core/consumer-rules.pro` beschermen Jsoup, dat de HTML van
