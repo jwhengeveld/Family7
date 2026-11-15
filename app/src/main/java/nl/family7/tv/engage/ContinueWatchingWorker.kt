@@ -27,9 +27,12 @@ import com.google.android.engage.video.datamodel.TvEpisodeEntity
 import com.google.android.engage.video.datamodel.WatchNextType
 import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.Dispatchers
+import nl.family7.tv.BuildConfig
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.net.HttpURLConnection
+import kotlin.coroutines.cancellation.CancellationException
 import java.net.URL
 import java.util.Locale
 import kotlin.coroutines.resume
@@ -49,11 +52,18 @@ class ContinueWatchingWorker(
     override suspend fun doWork(): Result {
         val client = AppEngagePublishClient(applicationContext)
         val available = runCatching {
-            client.isServiceAvailable(
+            val perType = client.isServiceAvailable(
                 ServiceAvailabilityRequest.Builder()
                     .addIntendedClusterType(ClusterType.TYPE_CONTINUATION)
                     .build()
-            ).await()[ClusterType.TYPE_CONTINUATION] == true
+            ).await()
+            Log.d(TAG, "isServiceAvailable: $perType")
+            perType[ClusterType.TYPE_CONTINUATION] == true ||
+                // De verificatieapp schakelt alleen de algemene beschikbaarheid om.
+                (BuildConfig.DEBUG && client.isServiceAvailable().await())
+        }.onFailure {
+            if (it is CancellationException) throw it
+            Log.w(TAG, "isServiceAvailable mislukt", it)
         }.getOrDefault(false)
         if (!available) {
             Log.i(TAG, "Engage-dienst niet beschikbaar; niets gepubliceerd.")
@@ -76,7 +86,14 @@ class ContinueWatchingWorker(
 
         val store = ContinueWatching.get(applicationContext)
         val account = store.accountId() ?: return Result.success()
-        val items = withContext(Dispatchers.IO) { store.all().mapNotNull { entity(it) } }
+        // Kan een beeld niet worden opgehaald (geen netwerk), dan later opnieuw in
+        // plaats van een kortere rij te publiceren: dat zou afleveringen wissen.
+        val items = try {
+            withContext(Dispatchers.IO) { store.all().mapNotNull { entity(it) } }
+        } catch (e: IOException) {
+            Log.w(TAG, "Beelden niet bereikbaar; later opnieuw ($e)")
+            return Result.retry()
+        }
 
         return runCatching {
             if (items.isEmpty()) {
@@ -145,10 +162,16 @@ class ContinueWatchingWorker(
     /** Engage wil de echte afmetingen; die leest hij uit de kop van het plaatje. */
     private fun poster(url: String): Image? {
         if (url.isBlank()) return null
-        val size = runCatching { imageSize(url) }.getOrNull() ?: return null
+        val size = imageSizes[url] ?: imageSize(url)?.also { imageSizes[url] = it } ?: run {
+            Log.w(TAG, "Beeld onleesbaar: $url")
+            return null
+        }
         val (width, height) = size
         // Kleiner dan 200 pixels hoog toont Google TV niet.
-        if (height < 200) return null
+        if (height < 200) {
+            Log.w(TAG, "Beeld te klein (${width}x$height): $url")
+            return null
+        }
         return Image.Builder()
             .setImageUri(Uri.parse(url))
             .setImageWidthInPixel(width)
@@ -156,6 +179,7 @@ class ContinueWatchingWorker(
             .build()
     }
 
+    /** Gooit IOException bij een netwerkfout; null als het geen leesbaar beeld is. */
     private fun imageSize(url: String): Pair<Int, Int>? {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = 10_000
@@ -175,6 +199,9 @@ class ContinueWatchingWorker(
         const val WORK_NAME = "verder-kijken-publiceren"
         private const val TAG = "Family7Engage"
         private const val KEY_SIGN_OUT_ACCOUNT = "uitloggen"
+
+        /** Afmetingen per beeld, zodat niet elke publicatie alles opnieuw ophaalt. */
+        private val imageSizes = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Int>>()
 
         /**
          * Alleen op dit toestel. Synchroniseren tussen toestellen vraagt om een
