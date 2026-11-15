@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!--
+          Engage SDK in productie. Alleen in de release: de debugbuild praat met de
+          testomgeving, zodat de Engage-verificatieapp de rij kan tonen.
+        -->
+        <meta-data
+            android:name="com.google.android.engage.service.ENV"
+            android:value="PRODUCTION" />
+    </application>
+</manifest>

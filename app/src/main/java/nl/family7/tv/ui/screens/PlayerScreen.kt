@@ -36,9 +36,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import kotlinx.coroutines.delay
 import nl.family7.tv.R
+import nl.family7.tv.engage.ContinueWatching
+import nl.family7.tv.engage.WatchProgress
 import nl.family7.core.data.EpisodeItem
 import nl.family7.core.data.displayLabel
 import nl.family7.core.data.Family7VideoRepository
@@ -66,7 +69,11 @@ fun PlayerScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableIntStateOf(0) }
     var autoRetries by remember { mutableIntStateOf(0) }
-    var resumeAtMs by remember { mutableLongStateOf(0L) }
+    val continueWatching = remember { ContinueWatching.get(context) }
+    // Verder waar de kijker de vorige keer stopte (ook vanuit "Verder kijken" op Google TV).
+    var resumeAtMs by remember(episode.videoSlug) {
+        mutableLongStateOf(continueWatching.resumePositionMs(episode.videoSlug))
+    }
     val currentOnBack by rememberUpdatedState(onBack)
     val playerFocus = remember { FocusRequester() }
 
@@ -86,8 +93,53 @@ fun PlayerScreen(
     KeepScreenOn(enabled = isPlaying)
     PauseOnBackground(exoPlayer)
 
+    // De stand vastleggen: elke 15 seconden tijdens het kijken, bij pauze en bij weggaan.
+    fun saveProgress() {
+        val duration = exoPlayer.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return
+        val position = exoPlayer.currentPosition.coerceIn(0L, duration)
+        val season = program.seasons.firstOrNull { s -> s.episodes.any { it.videoSlug == episode.videoSlug } }
+        val all = program.seasons.flatMap { s -> s.episodes.map { s to it } }
+        val index = all.indexOfFirst { it.second.videoSlug == episode.videoSlug }
+        val next = all.getOrNull(index + 1)?.takeIf { index >= 0 }
+        val now = System.currentTimeMillis()
+        continueWatching.record(
+            WatchProgress(
+                videoSlug = episode.videoSlug,
+                programSlug = program.slug,
+                programTitle = program.title,
+                episodeTitle = episode.title,
+                episodeNumber = episode.episodeNumber,
+                seasonNumber = season?.seasonNumber.orEmpty(),
+                imageUrl = episode.thumbnailUrl.ifEmpty { program.posterUrl },
+                positionMs = position,
+                durationMs = duration,
+                updatedAtMs = now
+            ),
+            next = next?.let { (nextSeason, nextEpisode) ->
+                WatchProgress(
+                    videoSlug = nextEpisode.videoSlug,
+                    programSlug = program.slug,
+                    programTitle = program.title,
+                    episodeTitle = nextEpisode.title,
+                    episodeNumber = nextEpisode.episodeNumber,
+                    seasonNumber = nextSeason.seasonNumber,
+                    imageUrl = nextEpisode.thumbnailUrl.ifEmpty { program.posterUrl },
+                    updatedAtMs = now
+                )
+            }
+        )
+    }
+
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            delay(15_000)
+            saveProgress()
+        }
+    }
+
     DisposableEffect(Unit) {
         onDispose {
+            saveProgress()
             playerView.player = null
             exoPlayer.release()
         }
@@ -137,6 +189,7 @@ fun PlayerScreen(
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
+                if (!playing) saveProgress()
             }
 
             override fun onPlaybackStateChanged(state: Int) {

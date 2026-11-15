@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.baselineprofile)
 }
 
 // Ondertekeningsgegevens komen uit keystore.properties, dat buiten de repo blijft.
@@ -96,6 +97,10 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":brand"))
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.engage.tv)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
