@@ -8,6 +8,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import nl.family7.tv.BuildConfig
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
@@ -69,7 +70,7 @@ class ContinueWatching private constructor(context: Context) {
     fun signOut() {
         val account = prefs.getString(KEY_ACCOUNT, null)
         prefs.edit().remove(KEY_ITEMS).remove(KEY_ACCOUNT).apply()
-        if (account != null) ContinueWatchingWorker.enqueueSignOut(appContext, account)
+        if (account != null && BuildConfig.ENGAGE_ENABLED) ContinueWatchingWorker.enqueueSignOut(appContext, account)
     }
 
     internal fun accountId(): String? = prefs.getString(KEY_ACCOUNT, null)
@@ -77,7 +78,7 @@ class ContinueWatching private constructor(context: Context) {
     internal fun replaceAll(items: List<WatchProgress>) = synchronized(this) { write(items) }
 
     fun schedulePublish() {
-        if (accountId() == null) return
+        if (!BuildConfig.ENGAGE_ENABLED || accountId() == null) return
         val request = OneTimeWorkRequestBuilder<ContinueWatchingWorker>()
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .build()

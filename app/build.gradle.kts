@@ -40,6 +40,11 @@ android {
         versionName = "1.4.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // "Verder kijken" op het Google TV-startscherm (Engage SDK). Uit tot Google
+        // de app heeft toegelaten; de debugbuild zet hem aan voor de verificatieapp.
+        // Hervatten in de speler werkt los hiervan altijd.
+        buildConfigField("boolean", "ENGAGE_ENABLED", "false")
     }
 
     signingConfigs {
@@ -59,6 +64,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "ENGAGE_ENABLED", "true")
+        }
         release {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
