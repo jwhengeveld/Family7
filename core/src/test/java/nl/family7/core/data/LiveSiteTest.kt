@@ -32,16 +32,27 @@ class LiveSiteTest {
         assumeTrue("Alleen met -Pfamily7.live=true", System.getProperty("family7.live") == "true")
     }
 
-    private fun get(url: String): String =
-        client.newCall(
-            Request.Builder().url(url)
-                .header("User-Agent", "Mozilla/5.0 (Family7 sitewachter)")
-                .header("Referer", "https://www.family7.nl/plus")
-                .build()
-        ).execute().use { response ->
-            assertTrue(response.isSuccessful, "$url gaf ${response.code}")
-            response.body!!.string()
+    /** Een trage of haperende site is geen verbouwing: tot drie pogingen bij netwerkfouten. */
+    private fun get(url: String): String {
+        var last: java.io.IOException? = null
+        repeat(3) { attempt ->
+            if (attempt > 0) Thread.sleep(5_000L * attempt)
+            try {
+                return client.newCall(
+                    Request.Builder().url(url)
+                        .header("User-Agent", "Mozilla/5.0 (Family7 sitewachter)")
+                        .header("Referer", "https://www.family7.nl/plus")
+                        .build()
+                ).execute().use { response ->
+                    assertTrue(response.isSuccessful, "$url gaf ${response.code}")
+                    response.body!!.string()
+                }
+            } catch (e: java.io.IOException) {
+                last = e
+            }
         }
+        throw last!!
+    }
 
     private fun page(url: String): Document = Jsoup.parse(get(url), url)
 

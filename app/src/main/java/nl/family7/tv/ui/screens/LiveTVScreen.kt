@@ -37,10 +37,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import nl.family7.tv.R
+import kotlinx.coroutines.delay
 import nl.family7.core.data.Family7LiveRepository
 import nl.family7.core.data.LiveStreamInfo
 import nl.family7.tv.ui.components.TVButton
 import nl.family7.tv.ui.player.KeepScreenOn
+import nl.family7.tv.ui.player.PlaybackRecovery
 import nl.family7.tv.ui.player.PauseOnBackground
 import nl.family7.tv.ui.player.buildPlayer
 import nl.family7.tv.ui.player.buildPlayerView
@@ -59,6 +61,7 @@ fun LiveTVScreen(
     var isPlaying by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableIntStateOf(0) }
+    var autoRetries by remember { mutableIntStateOf(0) }
     val currentOnBack by rememberUpdatedState(onBack)
     val playerFocus = remember { FocusRequester() }
 
@@ -103,6 +106,7 @@ fun LiveTVScreen(
 
     LaunchedEffect(reloadKey) {
         errorMessage = null
+        if (autoRetries > 0) delay(PlaybackRecovery.BACKOFF_MS * autoRetries)
         liveRepo.getLiveInfo()
             .onSuccess { info ->
                 liveInfo = info
@@ -140,8 +144,23 @@ fun LiveTVScreen(
                 isPlaying = playing
             }
 
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state == Player.STATE_READY) autoRetries = 0
+            }
+
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                errorMessage = "Afspeelfout: ${error.localizedMessage}"
+                // Na een pauze of hapering loopt de speler achter het live-venster: gewoon terug naar live.
+                if (PlaybackRecovery.isBehindLiveWindow(error)) {
+                    exoPlayer.seekToDefaultPosition()
+                    exoPlayer.prepare()
+                    return
+                }
+                if (autoRetries < PlaybackRecovery.MAX_AUTO_RETRIES) {
+                    autoRetries++
+                    reloadKey++
+                    return
+                }
+                errorMessage = PlaybackRecovery.describe(error)
             }
         }
         exoPlayer.addListener(listener)
@@ -176,7 +195,7 @@ fun LiveTVScreen(
                     Text(text = errorMessage!!, color = Color.White, fontSize = 18.sp)
                     Spacer(modifier = Modifier.height(20.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        TVButton(text = "OPNIEUW PROBEREN", onClick = { reloadKey++ })
+                        TVButton(text = "OPNIEUW PROBEREN", onClick = { autoRetries = 0; reloadKey++ })
                         TVButton(text = "TERUG", onClick = onBack, isPrimary = false)
                     }
                 }

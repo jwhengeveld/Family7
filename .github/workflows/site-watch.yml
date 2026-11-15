@@ -38,3 +38,13 @@ jobs:
 
           Waarschijnlijk is de opmaak van family7.nl veranderd. De apps vallen terug op hun vangnetten en de laatst goede catalogus, maar controleer \`Family7Parser\` (Android) en \`Family7Parser.swift\` (iOS)."
           fi
+
+      - name: Issue sluiten als de site weer leest
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Sitewachter: family7.nl leest niet meer zoals verwacht"
+          for n in $(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "De sitewachter slaagt weer: [run ${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+          done
