@@ -35,8 +35,8 @@ android {
         targetSdk = 36
         // In de testeditie delen telefoon en tv één app in Play; daar moet elk
         // versienummer uniek zijn, dus de tv-builds zitten in een eigen reeks.
-        versionCode = 17 + if (isTestEdition) TV_VERSION_OFFSET else 0
-        versionName = "1.4.4"
+        versionCode = 18 + if (isTestEdition) TV_VERSION_OFFSET else 0
+        versionName = "1.4.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
