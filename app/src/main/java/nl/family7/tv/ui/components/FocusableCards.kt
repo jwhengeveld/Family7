@@ -110,7 +110,7 @@ fun TVProgramCard(
                         Text(
                             text = item.badge.uppercase(),
                             color = Color.White,
-                            fontSize = 9.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -179,7 +179,7 @@ fun TVEpisodeCard(
                         Text(
                             text = episode.duration,
                             color = Color.White,
-                            fontSize = 10.sp
+                            fontSize = 12.sp
                         )
                     }
                 }
@@ -199,7 +199,7 @@ fun TVEpisodeCard(
                     Text(
                         text = episode.description,
                         color = TextSecondary,
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )

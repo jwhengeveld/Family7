@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.baselineprofile)
 }
 
 // Ondertekeningsgegevens komen uit keystore.properties, dat buiten de repo blijft.
@@ -35,10 +36,15 @@ android {
         targetSdk = 36
         // In de testeditie delen telefoon en tv één app in Play; daar moet elk
         // versienummer uniek zijn, dus de tv-builds zitten in een eigen reeks.
-        versionCode = 17 + if (isTestEdition) TV_VERSION_OFFSET else 0
-        versionName = "1.4.4"
+        versionCode = 18 + if (isTestEdition) TV_VERSION_OFFSET else 0
+        versionName = "1.4.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // "Verder kijken" op het Google TV-startscherm (Engage SDK). Uit tot Google
+        // de app heeft toegelaten; de debugbuild zet hem aan voor de verificatieapp.
+        // Hervatten in de speler werkt los hiervan altijd.
+        buildConfigField("boolean", "ENGAGE_ENABLED", "false")
     }
 
     signingConfigs {
@@ -58,6 +64,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "ENGAGE_ENABLED", "true")
+        }
         release {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
@@ -96,6 +105,10 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":brand"))
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.engage.tv)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

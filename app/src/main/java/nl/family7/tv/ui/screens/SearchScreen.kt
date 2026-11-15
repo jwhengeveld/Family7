@@ -1,6 +1,10 @@
 package nl.family7.tv.ui.screens
 
 import nl.family7.tv.ui.components.TvFocusScrolling
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -33,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +65,25 @@ fun SearchScreen(
     var allPrograms by remember { mutableStateOf(cachedAz) }
     var displayedResults by remember { mutableStateOf(cachedAz) }
     var isLoading by remember { mutableStateOf(cachedAz.isEmpty()) }
+
+    // Spraakzoeken (TV-VS): de spraakherkenning van het toestel, alleen als die er is.
+    val context = LocalContext.current
+    val speechIntent = remember {
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "nl-NL")
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Zeg een titel of onderwerp")
+    }
+    val canSpeak = remember { speechIntent.resolveActivity(context.packageManager) != null }
+    var spokenQuery by remember { mutableStateOf<String?>(null) }
+    val speechLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        spokenQuery = result.data
+            ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            ?.firstOrNull()
+            ?.takeIf { it.isNotBlank() }
+    }
 
     val quickFilters = listOf(
         "Alles", "A-Z", "0-9", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
@@ -109,6 +134,13 @@ fun SearchScreen(
         displayedResults = list
     }
 
+    LaunchedEffect(spokenQuery, allPrograms) {
+        spokenQuery?.let { spoken ->
+            searchQuery = spoken
+            applyFilter(selectedFilter, spoken)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -130,6 +162,18 @@ fun SearchScreen(
             )
 
             Spacer(modifier = Modifier.width(20.dp))
+
+            if (canSpeak) {
+                TVButton(
+                    text = "SPREKEN",
+                    onClick = { runCatching { speechLauncher.launch(speechIntent) } },
+                    isPrimary = false,
+                    leadingIcon = {
+                        Icon(Icons.Default.Mic, contentDescription = null, tint = Color.White)
+                    }
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+            }
 
             TVInputField(
                 value = searchQuery,

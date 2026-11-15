@@ -1,5 +1,7 @@
 package nl.family7.tv
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -47,7 +49,10 @@ import nl.family7.tv.ui.screens.PlayerScreen
 import nl.family7.tv.ui.screens.ProgramDetailScreen
 import nl.family7.tv.ui.screens.ProgramGridScreen
 import nl.family7.tv.ui.screens.SearchScreen
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import nl.family7.tv.engage.ContinueWatching
 import nl.family7.tv.ui.components.Family7Logo
 import nl.family7.tv.ui.theme.Family7Blue
 import nl.family7.tv.ui.theme.Family7BlueDark
@@ -66,12 +71,29 @@ sealed class ScreenState {
     object MyList : ScreenState()
 }
 
+/** Een aflevering die Google TV ("Verder kijken") wil laten afspelen. */
+data class ResumeRequest(val programSlug: String, val videoSlug: String)
+
+private fun Intent?.resumeRequest(): ResumeRequest? {
+    val uri: Uri = this?.data ?: return null
+    if (uri.scheme != ContinueWatching.SCHEME || uri.host != ContinueWatching.HOST_PLAY) return null
+    val program = uri.getQueryParameter("programma")?.takeIf { it.isNotBlank() } ?: return null
+    val video = uri.getQueryParameter("video")?.takeIf { it.isNotBlank() } ?: return null
+    return ResumeRequest(program, video)
+}
+
 class MainActivity : ComponentActivity() {
     private lateinit var authRepo: Family7AuthRepository
     private lateinit var liveRepo: Family7LiveRepository
     private lateinit var catalogRepo: Family7CatalogRepository
     private lateinit var videoRepo: Family7VideoRepository
     private lateinit var myListRepo: Family7MyListRepository
+    private val resumeRequests = MutableStateFlow<ResumeRequest?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.resumeRequest()?.let { resumeRequests.value = it }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -88,6 +110,7 @@ class MainActivity : ComponentActivity() {
         catalogRepo = Family7CatalogRepository(this)
         videoRepo = Family7VideoRepository(this)
         myListRepo = Family7MyListRepository(this)
+        resumeRequests.value = intent.resumeRequest()
 
         setContent {
             Family7TVTheme {
@@ -97,7 +120,9 @@ class MainActivity : ComponentActivity() {
                         liveRepo = liveRepo,
                         catalogRepo = catalogRepo,
                         videoRepo = videoRepo,
-                        myListRepo = myListRepo
+                        myListRepo = myListRepo,
+                        resumeRequests = resumeRequests,
+                        onResumeHandled = { resumeRequests.value = null }
                     )
                 }
             }
@@ -111,8 +136,13 @@ fun Family7TVApp(
     liveRepo: Family7LiveRepository,
     catalogRepo: Family7CatalogRepository,
     videoRepo: Family7VideoRepository,
-    myListRepo: Family7MyListRepository
+    myListRepo: Family7MyListRepository,
+    resumeRequests: StateFlow<ResumeRequest?>,
+    onResumeHandled: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val continueWatching = remember { ContinueWatching.get(context) }
+    val resumeRequest by resumeRequests.collectAsState()
     var screenState by remember { mutableStateOf<ScreenState>(ScreenState.Splash) }
     // Het geanimeerde splashscherm ligt over de app heen; die laadt eronder al door.
     var splashDone by rememberSaveable { mutableStateOf(false) }
@@ -125,13 +155,44 @@ fun Family7TVApp(
         // De catalogus van de vorige keer staat dan al klaar als het
         // startscherm verschijnt; ophalen bij Family7 gebeurt daarna stil.
         launch { catalogRepo.restoreSnapshots() }
+        // Staat er een sessie, dan meteen naar het startscherm; Family7 bevestigt
+        // die daarna op de achtergrond. Zo wacht de start niet op het netwerk.
+        if (authRepo.hasStoredSession()) {
+            screenState = ScreenState.Home
+        }
         val session = authRepo.checkSession()
         currentSession = session
         if (session.isLoggedIn) {
+            continueWatching.setAccount(session.uid)
+            if (screenState == ScreenState.Splash) screenState = ScreenState.Home
             myListRepo.refresh()
-            screenState = ScreenState.Home
         } else {
+            continueWatching.signOut()
+            myListRepo.clear()
+            catalogRepo.clearMemoryCache()
             screenState = ScreenState.Login
+        }
+    }
+
+    // "Verder kijken" op het Google TV-startscherm: de aflevering opzoeken en
+    // afspelen (de speler gaat zelf verder waar de kijker stopte).
+    LaunchedEffect(resumeRequest, currentSession?.isLoggedIn) {
+        val request = resumeRequest ?: return@LaunchedEffect
+        if (currentSession?.isLoggedIn != true) return@LaunchedEffect
+        onResumeHandled()
+        val detail = videoRepo.getProgramDetail(request.programSlug).getOrNull()
+        val episode = detail?.seasons?.flatMap { it.episodes }
+            ?.firstOrNull { it.videoSlug == request.videoSlug }
+        screenState = when {
+            detail != null && episode != null -> ScreenState.VideoPlayer(episode, detail)
+            else -> ScreenState.ProgramDetailView(
+                ProgramItem(
+                    id = request.programSlug,
+                    slug = request.programSlug,
+                    title = detail?.title.orEmpty(),
+                    thumbnailUrl = detail?.posterUrl.orEmpty()
+                )
+            )
         }
     }
 
@@ -140,6 +201,7 @@ fun Family7TVApp(
     LaunchedEffect(Unit) {
         SessionEvents.expired.collect {
             if (currentSession?.isLoggedIn == true && !authRepo.checkSession().isLoggedIn) {
+                continueWatching.signOut()
                 currentSession = null
                 myListRepo.clear()
                 catalogRepo.clearMemoryCache()
@@ -160,6 +222,7 @@ fun Family7TVApp(
                 authRepo = authRepo,
                 onLoginSuccess = { session ->
                     currentSession = session
+                    continueWatching.setAccount(session.uid)
                     scope.launch { myListRepo.refresh() }
                     screenState = ScreenState.Home
                 }
@@ -178,6 +241,7 @@ fun Family7TVApp(
                 onNavigateToKids = { screenState = ScreenState.Kids },
                 onNavigateToMyList = { screenState = ScreenState.MyList },
                 onLogout = {
+                    continueWatching.signOut()
                     authRepo.logout()
                     currentSession = null
                     myListRepo.clear()

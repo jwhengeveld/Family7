@@ -15,6 +15,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -46,6 +48,16 @@ const val SEEK_FORWARD_MS = 30_000L
  */
 fun buildPlayer(context: Context): ExoPlayer =
     ExoPlayer.Builder(context)
+        // Audiofocus: pauzeren of zachter bij de Assistent, een melding of een andere app,
+        // en stoppen als een koptelefoon of soundbar wegvalt (Android TV-richtlijn).
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build(),
+            /* handleAudioFocus = */ true
+        )
+        .setHandleAudioBecomingNoisy(true)
         .setSeekBackIncrementMs(SEEK_BACK_MS)
         .setSeekForwardIncrementMs(SEEK_FORWARD_MS)
         .build()

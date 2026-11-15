@@ -401,7 +401,7 @@ fun HeroBanner(
                     Text(
                         text = program.badge.uppercase(),
                         color = Color.White,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
